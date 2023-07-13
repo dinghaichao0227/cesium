@@ -1,0 +1,44 @@
+{
+  "name": "electron-app",
+  "version": "1.0.0",
+  "description": "gitee：https://gitee.com/caozl1132/CesiumExp-plot   github：https://github.com/gitgitczl/CesiumExp-plot",
+  "main": "electron-main.js",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "start": "nodemon  --exec electron . --watch ./ --ext .js,.html,.css,.vue",
+    "build": "run-p type-check build-only",
+    "builder": "vue-tsc --noEmit &&  vite build --emptyOutDir",
+    "preview": "vite preview",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
+  },
+  "dependencies": {
+    "ant-design-vue": "^3.2.20",
+    "axios": "^1.4.0",
+    "cesium": "^1.107.0",
+    "echarts": "^5.4.2",
+    "electron-builder": "^24.4.0",
+    "nodemon": "^2.0.22",
+    "normalize.css": "^8.0.1",
+    "nvm": "^0.0.4",
+    "pinia": "^2.1.4",
+    "vue": "^3.3.2",
+    "vue-router": "^4.1.6"
+  },
+  "devDependencies": {
+    "@tsconfig/node18": "^2.0.1",
+    "@types/node": "^18.16.8",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "@vue/tsconfig": "^0.4.0",
+    "electron": "^25.2.0",
+    "electron-win-state": "^1.1.22",
+    "npm-run-all": "^4.1.5",
+    "typescript": "~5.0.4",
+    "vite": "^4.3.5",
+    "vue-tsc": "^1.6.4",
+    "wavesurfer.js": "^7.0.0-beta.14"
+  },
+  "author": "",
+  "license": "ISC"
+}
