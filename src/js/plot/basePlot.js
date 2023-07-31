@@ -8,8 +8,8 @@ import util from "../util";
  */
 class BasePlot {
     /**
-     * @param {Cesium.Viewer} viewer 地图viewer对象 
-     * @param {Object} style 样式属性 
+     * @param {Cesium.Viewer} viewer 地图viewer对象
+     * @param {Object} style 样式属性
      */
     constructor(viewer, style) {
         this.viewer = viewer;
@@ -68,8 +68,8 @@ class BasePlot {
     }
 
     /**
-     * 
-     * @param {Object} px 像素坐标 
+     *
+     * @param {Object} px 像素坐标
      * @returns {Cesium.Cartesian3} 世界坐标
      */
     getCatesian3FromPX(px) {
@@ -96,7 +96,7 @@ class BasePlot {
 
     /**
      *  此方法用于 地图界面缩放问题（transform:translate(2)）
-     * @param {Number} scale 缩放比例 
+     * @param {Number} scale 缩放比例
      */
     setClientScale(scale) {
         scale = scale || 1;
@@ -111,7 +111,7 @@ class BasePlot {
     }
 
     /**
-     * 
+     *
      * @returns {Cesium.Entity} 实体对象
      */
     getEntity() {
@@ -119,7 +119,7 @@ class BasePlot {
     }
 
     /**
-     * 
+     *
      * @param {Boolean} isWgs84 是否转化为经纬度
      * @returns {Array} 坐标数组
      */
@@ -137,7 +137,7 @@ class BasePlot {
 
     /**
      * 设置自定义属性
-     * @param {Object} prop 属性 
+     * @param {Object} prop 属性
      */
     setOwnProp(prop) {
         if (this.entity) this.entity.ownProp = prop;
@@ -156,7 +156,7 @@ class BasePlot {
 
     /**
      * 设置entity对象的显示隐藏
-     * @param {Boolean} visible 
+     * @param {Boolean} visible
      */
     setVisible(visible) {
         if (this.entity) this.entity.show = visible;
@@ -204,7 +204,7 @@ class BasePlot {
     }
 
     /**
-     * 
+     *
      * 开始编辑
      */
     startEdit(callback) {
@@ -239,6 +239,9 @@ class BasePlot {
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
         this.modifyHandler.setInputAction(function (evt) {
+            var ray = that.viewer.camera.getPickRay(new Cesium.Cartesian2(evt.position.x, evt.position.y));
+			var position = that.viewer.scene.globe.pick(ray, that.viewer.scene);
+			console.log(position, 111111111);
             if (!that.modifyPoint) return;
             that.modifyPoint = null;
             that.forbidDrawWorld(false);
@@ -283,6 +286,7 @@ class BasePlot {
 
     // 构建控制点
     createPoint(position) {
+        console.log(position, 1111111111111111111);
         if (!position) return;
         this.pointStyle.color = this.pointStyle.color || Cesium.Color.CORNFLOWERBLUE;
         this.pointStyle.outlineColor = this.pointStyle.color || Cesium.Color.CORNFLOWERBLUE;
@@ -296,7 +300,7 @@ class BasePlot {
         return this.viewer.entities.add({
             position: position,
             point: {
-                pixelSize: this.pointStyle.property || 10,
+                pixelSize: this.pointStyle.property || 130,
                 color: color,
                 outlineWidth: this.pointStyle.outlineWidth || 0,
                 outlineColor: outlineColor,
@@ -307,7 +311,7 @@ class BasePlot {
     }
 
     // 获取当前标绘的样式
-    /*  getStyle() {
+     getStyle() {
         if (!this.entity) return;
         let graphic = this.entity[this.plotType];
         if (!graphic) return;
@@ -337,7 +341,7 @@ class BasePlot {
                 break;
         }
         return style;
-    } */
+    }
 
     // 获取线的材质
     transfromLineMaterial(material) {

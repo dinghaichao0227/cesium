@@ -1,14 +1,16 @@
 //@ts-ignore
 
 import {createRouter, createWebHashHistory, RouteRecordRaw} from 'vue-router';
-// 路由记录，这个跟vue2中用法一致，就不做过多解释了
 
 
 import routes from "./routes"
+// // 在你的 Vue Router 代码中添加以下代码
+// import path from 'path'
 
+// const __dirname = path.resolve()
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes,
 });
 export default router;

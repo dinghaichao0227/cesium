@@ -20,12 +20,16 @@ class CreatePolyline extends BasePlot {
          * @property {Number} [maxPointNum=Number.MAX_VALUE] 线的最大点位数量
         */
         this.maxPointNum = style.maxPointNum || Number.MAX_VALUE; // 最多点数
+    this.position = null
+
     }
 
     /**
      * 开始绘制
      * @param {Function} callback 绘制完成之后的回调函数
      */
+
+
     start(callback) {
         if (!this.prompt && this.promptStyle.show) this.prompt = new Prompt(this.viewer, this.promptStyle);
         this.state = "startCreate";
@@ -33,6 +37,9 @@ class CreatePolyline extends BasePlot {
         if (!this.handler) this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
         this.handler.setInputAction(function (evt) { //单击开始绘制
             let cartesian = that.getCatesian3FromPX(evt.position, that.viewer, [that.entity]);
+            that.position = cartesian
+
+            console.log(cartesian, 6868688);
             if (!cartesian) return;
             if (that.movePush) {
                 that.positions.pop();
@@ -52,6 +59,7 @@ class CreatePolyline extends BasePlot {
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
         this.handler.setInputAction(function (evt) { //移动时绘制线
+            console.log(evt, 98767);
             that.state = "creating";
             if (that.positions.length < 1) {
                 that.prompt.update(evt.endPosition, "单击开始绘制");
@@ -76,30 +84,31 @@ class CreatePolyline extends BasePlot {
             }
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-        this.handler.setInputAction(function (evt) { //右键取消上一步
-            if (!that.entity) {
-                return;
-            }
-            that.positions.splice(that.positions.length - 2, 1);
-            that.viewer.entities.remove(that.controlPoints.pop())
-            if (that.positions.length == 1) {
-                if (that.entity) {
-                    that.viewer.entities.remove(that.entity);
-                    that.entity = null;
-                }
-                that.prompt.update(evt.endPosition, "单击开始绘制");
-                that.movePush = false;
-                that.positions = [];
-            }
-        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+        // this.handler.setInputAction(function (evt) { //右键取消上一步
+        //     if (!that.entity) {
+        //         return;
+        //     }
+        //     that.positions.splice(that.positions.length - 2, 1);
+        //     that.viewer.entities.remove(that.controlPoints.pop())
+        //     if (that.positions.length == 1) {
+        //         if (that.entity) {
+        //             that.viewer.entities.remove(that.entity);
+        //             that.entity = null;
+        //         }
+        //         that.prompt.update(evt.endPosition, "单击开始绘制");
+        //         that.movePush = false;
+        //         that.positions = [];
+        //     }
+        // }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
         this.handler.setInputAction(function (evt) { //双击结束绘制
+            console.log(evt, 88888877);
             if (!that.entity) {
                 return;
             }
             that.endCreate();
             if (callback) callback(that.entity);
-        }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
     }
 
     endCreate() {
@@ -109,8 +118,8 @@ class CreatePolyline extends BasePlot {
             that.handler.destroy();
             that.handler = null;
         }
-        that.positions.pop();
-        that.viewer.entities.remove(that.controlPoints.pop())
+        // that.positions.pop();
+        // that.viewer.entities.remove(that.controlPoints.pop())
         if (that.prompt) {
             that.prompt.destroy();
             that.prompt = null;
@@ -165,7 +174,7 @@ class CreatePolyline extends BasePlot {
         let material = this.getMaterial(style.material, style);
         this.entity.polyline.material = material;
         this.entity.polyline.clampToGround = Boolean(style.clampToGround);
-        if (style.width) this.entity.polyline.width = style.width || 3;
+        if (style.width) this.entity.polyline.width = style.width || 30;
         this.style = Object.assign(this.style, style);
     }
     // 获取相关样式
@@ -207,14 +216,14 @@ class CreatePolyline extends BasePlot {
                 }, false),
                 show: true,
                 material: this.getMaterial(this.style.animateType, this.style),
-                width: this.style.width || 3,
+                width: this.style.width || 30,
                 clampToGround: this.style.clampToGround
             }
         });
+        console.log(that.positions, 999999877);
         polyline.objId = this.objId; // 此处进行和entityObj进行关联
         return polyline;
     }
-
     getMaterial(animateType, style) {
         // 构建多种材质的线
         style = style || {};

@@ -1,14 +1,31 @@
-// preload.js
+// 在渲染进程中的 preload.js 文件中
+const { ipcRenderer } = require('electron')
 
-// 所有的 Node.js API接口 都可以在 preload 进程中被调用.
-// 它拥有与Chrome扩展一样的沙盒。
-window.addEventListener('DOMContentLoaded', () => {
-  const replaceText = (selector, text) => {
-    const element = document.getElementById(selector)
-    if (element) element.innerText = text
-  }
+let viewer = null
 
-  for (const dependency of ['chrome', 'node', 'electron']) {
-    replaceText(`${dependency}-version`, process.versions[dependency])
-  }
+// 监听主进程传递的另一个窗口的句柄
+ipcRenderer.on('sub-window', (event, id) => {
+  // 在窗口加载完成后初始化 Cesium 场景
+  const subWindow = remote.webContents.fromId(id).getOwnerBrowserWindow()
+  subWindow.webContents.on('did-finish-load', () => {
+    const Cesium = require('cesium/Cesium')
+    viewer = new Cesium.Viewer('cesiumContainer', {
+      terrainProvider: new Cesium.CesiumTerrainProvider({
+        url: "/public/Cesium1.61/Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg",
+      }),
+    })
+  })
+})
+
+ipcRenderer.on('main-window', (event, id) => {
+  // 在窗口加载完成后初始化 Cesium 场景
+  const mainWindow = remote.webContents.fromId(id).getOwnerBrowserWindow()
+  mainWindow.webContents.on('did-finish-load', () => {
+    const Cesium = require('cesium/Cesium')
+    viewer = new Cesium.Viewer('cesiumContainer', {
+      terrainProvider: new Cesium.CesiumTerrainProvider({
+        url: "/public/Cesium1.61/Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg",
+      }),
+    })
+  })
 })

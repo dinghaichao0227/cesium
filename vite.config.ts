@@ -2,14 +2,38 @@
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-const path = require('path');
+import requireTransform from 'vite-plugin-require-transform';
+import electronBuilder from "electron-builder"
+
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  // configureWebpack: {
+  //   node: {
+  //     __dirname: true
+  //   }
+  // }
+  electronBuilder: {
+    preload: './electron-preload.js',
+  },
+  server: {
+    // mimeTypes:{
+    //   'text/css': ["css"]
+    // }
+  },
+  devServer: {
+    open: true
+  },
+  plugins: [vue(),
+    requireTransform({
+      fileRegex: /.js$|.vue$/
+    }),
+  ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname,"src")
+      // '@': path.resolve(__dirname,"src")
     }
   }
 })
+

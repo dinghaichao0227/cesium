@@ -1,0 +1,7 @@
+
+{
+	"files": ["dist/**/*", "dist-electron/**/*"], // 设置需要打包的文件
+	"directories": {
+		"output": "release" // 设置出口文件
+	}
+}

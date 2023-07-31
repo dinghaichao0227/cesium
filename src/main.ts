@@ -5,6 +5,10 @@ import { createPinia } from "pinia";
 import Antd from "ant-design-vue";
 import "ant-design-vue/dist/antd.css";
 import "normalize.css";
+import "../src/style/theme.scss"
+
+
+
 
 const pinia = createPinia()
 const app = createApp(App)

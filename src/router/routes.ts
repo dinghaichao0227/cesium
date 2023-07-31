@@ -10,7 +10,17 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/label',
     name: 'label',
-    component: () => import("@/views/label/index.vue")
+    component: () => import("../views/label/index.vue")
+  },
+  {
+    path: '/splitScreen',
+    name: 'splitScreen',
+    component: () => import("../views/splitScreen/index.vue")
+  },
+  {
+    path: '/map',
+    name: 'map',
+    component: () => import("../views/map/index.vue")
   }
 ];
 

@@ -28,6 +28,11 @@ onMounted(() => {
     animation: false,
   })
 
+
+
+
+
+
   const rightViewer = new Cesium.Viewer('rightContainer', {
       sceneMode: Cesium.SceneMode.SCENE2D,
       imageryProvider: new Cesium.WebMapServiceImageryProvider({

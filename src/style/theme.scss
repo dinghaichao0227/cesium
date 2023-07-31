@@ -1,0 +1,15 @@
+/* day样式主题 */
+body.day {
+  .box {
+    background: #fff;
+  }
+  .toolbar-btn {
+    color: #000;
+  }
+
+}
+/* dark样式主题 */
+body.dark .box {
+  color: #eee;
+  background: #333;
+}

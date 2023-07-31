@@ -2,6 +2,7 @@ import '../prompt/prompt.css'
 import Prompt from '../prompt/prompt.js'
 import BasePlot from './basePlot';
 import util from "../util";
+import { radar } from "./radar"
 
 /**
  * 点标绘类
@@ -25,6 +26,7 @@ class CreatePoint extends BasePlot {
 		 * @property {Cesium.Cartesian3} 坐标
 		 */
 		this.position = null;
+		this.cartographic = null;
 	}
 
 	start(callback) {
@@ -82,14 +84,15 @@ class CreatePoint extends BasePlot {
 		}
 	}
 
-	createByPositions(lnglatArr, callback) {
-		if (!lnglatArr) return;
+	createByPositions(callback) {
+		console.log(callback, 9876);
+		if (!callback) return;
 		this.state = "startCreate";
-		let position = (lnglatArr instanceof Cesium.Cartesian3) ? lnglatArr : Cesium.Cartesian3.fromDegrees(lnglatArr[0], lnglatArr[1], lnglatArr[2]);
+		let position = (callback instanceof Cesium.Cartesian3) ? callback : Cesium.Cartesian3.fromDegrees(callback[0], callback[1], callback[2]);
 		this.position = position;
 		if (!position) return;
 		this.entity = this.createPoint(position);
-		if (callback) callback(this.entity);
+		// if (callback) callback(this.entity);
 		this.state = "endCreate";
 	}
 
@@ -115,20 +118,18 @@ class CreatePoint extends BasePlot {
 	getStyle() {
 		let obj = {};
 		let point = this.entity.point;
-
 		let color = point.color.getValue();
 		obj.colorAlpha = color.alpha;
 		obj.color = new Cesium.Color(color.red, color.green, color.blue, 1).toCssHexString();
-
 		obj.outlineWidth = point.outlineWidth._value;
 		let outlineColor = point.outlineColor.getValue();
 		obj.outlineColorAlpha = outlineColor.alpha;
 		obj.outlineColor = new Cesium.Color(outlineColor.red, outlineColor.green, outlineColor.blue, 1).toCssHexString();
-
 		if (point.heightReference != undefined) obj.heightReference = point.heightReference.getValue();
 		obj.pixelSize = Number(point.pixelSize);
 		return obj;
 	}
+
 	getPositions(isWgs84) {
 		return isWgs84 ? util.cartesianToLnglat(this.position) : this.position
 	}
@@ -136,20 +137,27 @@ class CreatePoint extends BasePlot {
 	getLnglats(){
 		return this.getPositions(true);
 	}
-	
+
 	startEdit(callback) {
+		console.log(callback);
 		if (this.state == "startEdit" || this.state == "editing" || !this.entity) return;
 		this.state = "startEdit";
 		if (!this.modifyHandler) this.modifyHandler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
 		let that = this;
 		let editPoint;
+
 		this.modifyHandler.setInputAction(function (evt) {
 			let pick = that.viewer.scene.pick(evt.position);
 			if (Cesium.defined(pick) && pick.id) {
 				editPoint = pick.id;
 				that.forbidDrawWorld(true);
+				// 弧度转为角度（经纬度）
+        let lat = Cesium.Math.toDegrees(that.cartographic.latitude);
+        let lon = Cesium.Math.toDegrees(that.cartographic.longitude);
+				radar(lat, lon, that.viewer)
 			}
 		}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
 		this.modifyHandler.setInputAction(function (evt) {
 			if (!editPoint) return;
 			let cartesian = that.getCatesian3FromPX(evt.endPosition, that.viewer);
@@ -163,6 +171,16 @@ class CreatePoint extends BasePlot {
 		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
 		this.modifyHandler.setInputAction(function (evt) {
+			var ray = that.viewer.camera.getPickRay(new Cesium.Cartesian2(evt.position.x, evt.position.y));
+			var position = that.viewer.scene.globe.pick(ray, that.viewer.scene);
+			console.log(position, 776554);
+			if (Cesium.defined(radar)) {
+				that.viewer.scene.postProcessStages.removeAll();
+		}
+			var positionss = that.viewer.scene.globe.ellipsoid.cartesianToCartographic(position)
+			let lat = Cesium.Math.toDegrees(positionss.latitude);
+        let lon = Cesium.Math.toDegrees(positionss.longitude);
+				radar(lat, lon, that.viewer)
 			if (!editPoint) return;
 			that.forbidDrawWorld(false);
 			if (that.modifyHandler) {
@@ -172,6 +190,7 @@ class CreatePoint extends BasePlot {
 			}
 		}, Cesium.ScreenSpaceEventType.LEFT_UP);
 	}
+
 	endEdit(callback) {
 		if (this.modifyHandler) {
 			this.modifyHandler.destroy();
@@ -181,6 +200,7 @@ class CreatePoint extends BasePlot {
 		this.forbidDrawWorld(false);
 		this.state = "endEdit";
 	}
+
 	createPoint(cartesian) {
 		if (!cartesian) return;
 		let point = this.viewer.entities.add({
@@ -188,11 +208,14 @@ class CreatePoint extends BasePlot {
 			point: {
 				color: this.style.color instanceof Cesium.Color ? this.style.color : (this.style.color ? Cesium.Color.fromCssColorString(this.style.color).withAlpha(this.style.colorAlpha || 1) : Cesium.Color.WHITE),
 				outlineColor: this.style.outlineColor instanceof Cesium.Color ? this.style.outlineColor : (this.style.outlineColor ? Cesium.Color.fromCssColorString(this.style.outlineColor).withAlpha(this.style.outlineColorAlpha || 1) : Cesium.Color.BLACK),
-				outlineWidth: this.style.outlineWidth || 4,
-				pixelSize: this.style.pixelSize || 20,
+				outlineWidth: this.style.outlineWidth || 40,
+				pixelSize: this.style.pixelSize || 50,
 				disableDepthTestDistance: Number.MAX_VALUE
-			}
+			},
 		})
+
+		this.cartographic = this.viewer.scene.globe.ellipsoid.cartesianToCartographic(cartesian)
+		// console.log(cartesian, 99877);
 		point.objId = this.objId;
 		return point;
 	}

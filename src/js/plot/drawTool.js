@@ -11,7 +11,7 @@ import CreatePolyline from './createPolyline.js'
 import util from '../util.js'
 /**
  * 绘制控制类
- * 
+ *
  * @class
  * @example
  * let drawTool = new easy3d.DrawTool(window.viewer, {
@@ -31,8 +31,8 @@ import util from '../util.js'
  */
 class DrawTool {
   /**
-   * 
-   * @param {Cesium.viewer} viewer 地图viewer对象 
+   *
+   * @param {Cesium.viewer} viewer 地图viewer对象
    * @param {Object} obj 相关属性配置
    * @param {Boolean} obj.canEdit 是否可编辑
    */
@@ -44,7 +44,7 @@ class DrawTool {
     obj = obj || {};
     this.viewer = viewer;
     /**
-     * 
+     *
      * @property {Array} entityObjArr 标绘对象数组
      */
     this.entityObjArr = [];
@@ -82,7 +82,7 @@ class DrawTool {
     this.nowEditEntityObj = null; // 当前编辑的对象
   }
 
-  /** 
+  /**
    * 事件绑定
    * @param {String} type 事件类型（startEdit 开始编辑时 / endEdit 编辑结束时 / remove 删除对象时 / endCreate 创建完成后）
    * @param {Function} fun 绑定函数
@@ -244,7 +244,7 @@ class DrawTool {
       if (opt.success) opt.success(entityObj, entity);
       if (that.endCreateFun) that.endCreateFun(entityObj, entity);
       if (opt.show == false) entityObj.setVisible(false);
-      // 如果可以编辑 则绘制完成打开编辑 
+      // 如果可以编辑 则绘制完成打开编辑
       if (that.canEdit && that.fireEdit) {
         entityObj.startEdit(function () {
           if (that.editingFun) that.editingFun(entityObj, entityObj.entity);
@@ -525,7 +525,56 @@ class DrawTool {
     }
     return obj;
   }
+  saveData() { //保存用户数据
+		var jsonData = {
+			pointData: [],
+			// attackArrowData: [],
+			// pincerArrowData: []
+		}
+		for (var step = 0; step < this.entityObjArr.length; step++) {
+			var item = this.entityObjArr[step];
+			var positions = item.getLnglats();
+			if (item.type == "point") {
+				jsonData.pointData.push(positions);
+      }
+			// } else if (item.type == "AttackArrow") {
+			// 	jsonData.attackArrowData.push(positions);
+			// } else {
+			// 	jsonData.pincerArrowData.push(positions);
+			// }
+		}
+		console.log("保存的数据：" + JSON.stringify(jsonData));
+		sessionStorage.setItem('jsonData', JSON.stringify(jsonData))
+	}
+  showData(jsonData) { //展示用户保存的数据
+		console.log(jsonData, 7645);
+		if(!jsonData) return ;
+		var points = jsonData.pointData;
+		// var attackArrowArr = jsonData.attackArrowData;
+		// var pincerArrowArr = jsonData.pincerArrowData;
+		//展示直线箭头
+		for(var i=0;i<points.length;i++){
+			var item = points[i];
+			var pointData = new CreatePoint(this.viewer);
+			pointData.createByPositions(item);
+			this.entityObjArr.push(pointData);
+		}
+		// //展示攻击箭头
+		// for(var j=0;j<attackArrowArr.length;j++){
+		// 	var item = attackArrowArr[j];
+		// 	var attackArrow = new AttackArrow(viewer);
+		// 	attackArrow.createByData(item);
+		// 	this.drawArr.push(attackArrow);
+		// }
+		// //展示钳击箭头
+		// for(var z=0;z<pincerArrowArr.length;z++){
+		// 	var item = pincerArrowArr[z];
+		// 	var pincerArrow = new PincerArrow(viewer);
+		// 	pincerArrow.createByData(item);
+		// 	this.drawArr.push(pincerArrow);
+		// }
 
+	}
   /**
    * 根据id设置对象的显示隐藏
    * @param {String | Number} id 对象id
@@ -770,8 +819,8 @@ class DrawTool {
     // if (opt.type == "arrow") {
     //   /**
     //   * situationType值及对应的类型：
-    //   *  	1-攻击箭头 2-攻击箭头（平尾）3-攻击箭头（燕尾）4-闭合曲面 5-钳击箭头 
-    //   * 		6-单尖直箭头 7-粗单尖直箭头(带燕尾) 8-集结地 9-弓形面 10-直箭头 
+    //   *  	1-攻击箭头 2-攻击箭头（平尾）3-攻击箭头（燕尾）4-闭合曲面 5-钳击箭头
+    //   * 		6-单尖直箭头 7-粗单尖直箭头(带燕尾) 8-集结地 9-弓形面 10-直箭头
     //   * 		11-矩形旗 12-扇形 13-三角旗 14-矩形波浪旗 17-多边形 18-圆形
     //   */
     //   if (!opt.arrowType) {
