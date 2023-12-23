@@ -67,6 +67,7 @@ const { app, BrowserWindow, screen, ipcMain } = require ('electron');
 
 var mainWindow;
 var subWindow;
+var leftWindow;
 
 function createWindows() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -96,9 +97,21 @@ function createWindows() {
       enableRemoteModule: true
     }
   });
+  leftWindow = new BrowserWindow({
+    width: subScreenWidth,
+    height: subScreenHeight,
+    x: subScreen ? subScreen.bounds.x : screenWidth,
+    y: subScreen ? subScreen.bounds.y : 0,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true
+    }
+  });
 
   subWindow.loadURL('http://127.0.0.1:5173/#/splitScreen');
-  mainWindow.loadURL('http://127.0.0.1:5173/#/map');
+  mainWindow.loadURL('http://127.0.0.1:5173/#/label');
+  leftWindow.loadURL('http://127.0.0.1:5173/#/');
   ipcMain.on('sub-data', (event, data) => {
     subWindow.webContents.send('main-data', data);
   });

@@ -1,15 +1,23 @@
-/* day样式主题 */
-body.day {
-  .box {
-    background: #fff;
-  }
-  .toolbar-btn {
-    color: #000;
-  }
+.ant-drawer.ant-drawer-open .ant-drawer-mask {
+  opacity: 0.2;
+}
+.ant-drawer-content-wrapper {
+  opacity: 0.3;
+}
+.ant-tabs-nav-list {
+  width: 80px;
+  height: 20px;
+  margin-left: 20px;
+}
+.ant-tabs-nav::before {
+  display: none;
+}
+.ant-tabs-card.ant-tabs-top > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab, .ant-tabs-card.ant-tabs-bottom > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab, .ant-tabs-card.ant-tabs-top > div > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab, .ant-tabs-card.ant-tabs-bottom > div > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+  margin-left: 10px;
+
 
 }
-/* dark样式主题 */
-body.dark .box {
-  color: #eee;
-  background: #333;
+::v-deep.ant-tabs-tab {
+  background-color: rgb(35, 37, 42);
+  border: 6px solid #2a9780;
 }

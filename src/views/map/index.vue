@@ -1,129 +1,209 @@
 <template>
-  <div class="cesium-div">
-    <div id="leftContainer" class="cesium-container"></div>
-    <!-- <div id="rightContainer" class="cesium-container"></div> -->
+  <div id="app">
+      <v-gantt-chart
+          :currentTime="currentTime"
+          :startTime="times[0]"
+          :endTime="times[1]"
+          :cellWidth="cellWidth"
+          :cellHeight="cellHeight"
+          :timeLines="timeLines"
+          :titleHeight="titleHeight"
+          :scale="scale"
+          :titleWidth="titleWidth"
+          showCurrentTime
+          :hideHeader="hideHeader"
+          :dataKey="dataKey"
+          :datas="datas"
+      >
+      </v-gantt-chart>
   </div>
+
 </template>
 
-<script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-// import * as Cesium from 'cesium';
-// import useStore  from "@/pinia/index"
-
-let viewerLeft = null;
-let viewerRight = null;
-
-const leftContainer = ref(null);
-const rightContainer = ref(null);
-var leftViewer = null;
-// const {ipcRenderer}  = require('electron')
-const { ipcRenderer } = require("electron")
-
-const onCameraChanged = () => {
-  const camera = leftViewer.camera;
-  const position = camera.position;
-  const direction = camera.direction;
-  console.log(camera,position, direction);
-  // store.position = position
-  // store.direction = direction
-  // 向副屏发送消息
-//   ipcRenderer.send('data-update', {camera,position, direction})
-// console.log(ipcRenderer.send, 99888);
+<script>
+import dayjs from "dayjs";
+import {cloneDeep} from "lodash";
+import vGanttChart from "@/components/v-gantt/index";
 
 
+// import {mapMutations, mapState} from "vuex";
+import { useCounterStore } from "@/pinia/index.ts";
+import datum from "./datum.json";
 
-  // window.api.send('camera-info', { position, heading, pitch, roll })
-}
-onMounted(() => {
-  leftViewer = new Cesium.Viewer('leftContainer', {
-    // terrainProvider: Cesium.createWorldTerrain(),
-    imageryProvider: new Cesium.WebMapServiceImageryProvider({
-            url: "/public/Cesium1.61/Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg",
-        }),
-    sceneModePicker: false,
-    infoBox: false,
-    shouldAnimate: true,
-    timeline: false,
-    animation: false,
-  })
 
-  // 监听相机变化事件
-    leftViewer.camera.changed.addEventListener(onCameraChanged);
+export default {
+  name: "App",
 
-  // const rightViewer = new Cesium.Viewer('rightContainer', {
-  //     sceneMode: Cesium.SceneMode.SCENE2D,
-  //     imageryProvider: new Cesium.WebMapServiceImageryProvider({
-  //           url: "/public/Cesium1.61/Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg",
-  //       }),
-  //     // terrainProvider: Cesium.createWorldTerrain(),
-  //     sceneModePicker: false,
-  //     infoBox: false,
-  //     shouldAnimate: true,
-  //     timeline: false,
-  //     animation: false,
-  // })
+  data() {
+    return {
+      showRowList: useCounterStore().showRowList,
+      showRowList: useCounterStore().showRowList,
+      setShowRowList: useCounterStore(),
+      setRawRowList: useCounterStore(),
+      timeLines: [
+        {
+          time: dayjs()
+              .add(2, "hour")
+              .toString(),
+          text: "~~"
+        },
+        {
+          time: dayjs()
+              .add(5, "hour")
+              .toString(),
+          text: "try",
+          color: "#747E80"
+        }
+      ],
+      currentTime: dayjs(),
+      cellWidth: 60,
+      cellHeight: 50,
+      titleHeight: 60,
+      titleWidth: 250,
+      scale: 60,
+      times: [
+        dayjs()
+            .set("hour", 0)
+            .set("minute", 0)
+            .toString(),
+        dayjs()
+            .add(6, "day")
+            .set("hour", 23)
+            .set("minute", 59)
+            .toString()
+      ],
+      rowNum: 500,
+      colNum: 25,
+      datas: [[]],
+      dataKey: "id",
+      scrollToTime: dayjs()
+          .add(1, "day")
+          .toString(),
+      hideHeader: false,
+      positionB: {},
+      positionA: {},
+      ganttData: [],
+      classifyDialogVisible: false,
+      checkDialogVisible: false,
+      rowTypes: ["🚅", "🚈", "🚄"],
+      speedTypes: ["0~50", "50~100", "100"],
+      selectRowTypes: [],
+      selectSpeedTypes: [],
+      classifyTypeList: [],
+      rawData: [],
+      findList: [],
+      currentFindIndex: 0
+    };
+  },
+  watch: {
+    showRowList() {
+      this.classifyData();
+    },
+    cellWidth(){
+      setTimeout(()=>{
+        this.$bus.$emit("refresh");
+      },500)
+    },
+    scale(){
+      setTimeout(()=>{
+        this.$bus.$emit("refresh");
+      },500)
+    }
+  },
+  computed: {
 
-  // const MOUSE_TYPE = {
-  //     LEFT: 0,
-  //     RIGHT: 1
-  // }
+    // ...mapState([
+    //   "showRowList",
+    // ])
+  },
+  created() {
+    this.initData();
 
-  // window.mouseType = MOUSE_TYPE.LEFT
+  },
+  mounted() {
+  },
+  methods: {
 
-  // const leftHandler = new Cesium.ScreenSpaceEventHandler(leftViewer.canvas)
-  // leftHandler.setInputAction(() => {
-  //     window.mouseType = MOUSE_TYPE.LEFT
-  // }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+    initData(){
+      let list = datum;
+      useCounterStore().setRawRowList(list);
+      useCounterStore().setShowRowList(cloneDeep(list));
+      this.classifyData();
+    },
+    /* 数据分组*/
+    classifyData() {
 
-  // const rightHandler = new Cesium.ScreenSpaceEventHandler(rightViewer.canvas)
-  // rightHandler.setInputAction(() => {
-  //     window.mouseType = MOUSE_TYPE.RIGHT
-  // }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+      function combine(arr) {
+        let result = [];
+        (function f(t, a, n) {
+          if (n === 0) return result.push(t);
+          for (let i = 0; i < a[n - 1].length; i++) {
+            f(t.concat(a[n - 1][i]), a, n - 1);
+          }
+        })([], arr, arr.length);
+        return result;
+      }
 
-  // leftViewer.scene.postRender.addEventListener(() => {
-  //   if (window.mouseType === MOUSE_TYPE.RIGHT) {
-  //       // Get the destination of the right viewer camera
-  //       const destination = Cesium.Cartographic.toCartesian(rightViewer.camera.positionCartographic)
-  //       // Set the left viewer camera position and orientation to match the right viewer camera
-  //       leftViewer.camera.setView({
-  //           destination: new Cesium.Cartesian3(destination.x, destination.y, destination.z),
-  //           orientation: {
-  //               heading: rightViewer.camera.heading,
-  //               pitch: rightViewer.camera.pitch,
-  //               roll: rightViewer.camera.roll,
-  //           },
-  //       })
-  //   }
-  // })
+      let typeList = this.selectRowTypes.length ? this.selectRowTypes : [""];
+      let speedList = this.selectSpeedTypes.length ? this.selectSpeedTypes : [""];
+      let resultArr = combine([typeList, speedList]);
+      let classifyList = [];
+      resultArr.forEach(resultItem => {
+        //新建空对象，依次赋值, 建立最终类型数组
+        let tempObj = {};
+        if (resultItem[0]) {
+          tempObj["speed"] = resultItem[0];
+        }
+        if (resultItem[1]) {
+          tempObj["type"] = resultItem[1];
+        }
+        if (Object.getOwnPropertyNames(tempObj).length) {
+          classifyList.push(tempObj);
+        }
+      });
+      this.classifyTypeList = classifyList;
+      if (!classifyList.length) {
+        this.datas = [
+          {
+            groupType: {},
+            children: cloneDeep(this.showRowList),
+            isOpen: true
+          }
+        ];
+        return false;
+      }
+      let groupList = [];
 
-  // rightViewer.scene.postRender.addEventListener(() => {
-  //   if (window.mouseType === MOUSE_TYPE.LEFT) {
-  //       // Get the destination of the left viewer camera
-  //       const destination =
-  // Cesium.Cartographic.toCartesian(leftViewer.camera.positionCartographic)
-  //       // Set the right viewer camera position to match the left viewer camera
-  //       rightViewer.camera.setView({
-  //           destination: new Cesium.Cartesian3(destination.x, destination.y, destination.z),
-  //           orientation: {
-  //               heading: leftViewer.camera.heading,
-  //               pitch: leftViewer.camera.pitch,
-  //               roll: leftViewer.camera.roll,
-  //           },
-  //       })
-  //     }
-  // })
-})
+      /* 遍历每一个类型对象，并筛选对应的行，添加到每一个甘特组的children里*/
+      classifyList.forEach(classifyItem => {
+        let tempObj = Object.assign({}, classifyItem);
+        tempObj["children"] = [];
+        let blockRowList = cloneDeep(this.showRowList);
+        for (let filterKey in classifyItem) {
+          blockRowList = blockRowList.filter(bridgeItem => {
+            if (filterKey === "speed") {
+              let speedLimit = classifyItem[filterKey].split("~");
+              if (speedLimit.length === 2) {
+                return bridgeItem.speed >= speedLimit[0] && bridgeItem.speed < speedLimit[1];
+              } else {
+                return bridgeItem.speed >= speedLimit[0];
+              }
+            }
+            return bridgeItem[filterKey] == classifyItem[filterKey];
+          });
+        }
+        blockRowList.forEach((item, index) => {
+          // 遍历每一行生成一个rawIndex属性，这个属性用来计算每一行的top值
+          item.rawIndex = index;
+        });
+        tempObj["children"] = blockRowList;
+        tempObj["groupType"] = classifyItem;
+        tempObj["isOpen"] = true;
+        groupList.push(tempObj);
+      });
+      this.datas = groupList;
+      this.classifyDialogVisible = false;
+    },
+  }
+};
 </script>
-
-<style scoped>
-.cesium-div {
-  display: flex;
-  height: 100vh;
-}
-
-.cesium-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-</style>

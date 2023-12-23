@@ -1,196 +1,115 @@
 <template>
-<div class="box">
-    <div id="mapContainer"></div>
-    <div class="toolbar">
-        <a-button v-for="(item, index) in plotList" :key="index" class="toolbar-btn" type="primary" @click="start(item)">{{
-            item.name }}</a-button>
-        <a-button class="toolbar-btn" type="primary" danger @click="clear">清除</a-button>
-        <a-button class="toolbar-btn" type="primary" danger @click="showData">上传</a-button>
-        <a-button class="toolbar-btn" type="primary" danger @click="saveData">导出</a-button>
-    <a-select  placeholder="请选择主题色" style="width: 120px" v-model:value="value" :options="options" @select="changeTheme(value)">changeTheme</a-select>
+  <div id="mapContainer">
+    <div class="lonLat">
+      <lonAndLat :lon="lon" :lat="lat" />
     </div>
-</div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, toRefs, onMounted } from "vue";
-//@ts-ignore
-import markerimg from "../../assets/start.png"
-//@ts-ignore
+import { ref, watch, reactive, toRefs, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import lonAndLat from './showLonAndLat/index.vue';
+import router from '@/router';
 
-import Tool from "../../js/plot/drawTool"
-//@ts-ignore
+import { polyline } from './config/trajectory/index';
 
-import util from "../../js/util.js";
-import { popoverProps } from "ant-design-vue/lib/popover";
-let viewer = undefined;
-const options = reactive([
-    {
-        value: 'day',
-        label: 'day'
-    },
-    {
-        value: 'dark',
-        label: 'dark'
-    },
-])
-
-const changeTheme = (item) => {
-    document.body.className = item
-    console.log(item);
-}
-
-const state = reactive({
-    plotList: [{
-        "name": "点",
-        "type": "point",
-        "iconImg": "./easy3d/images/plot/point.png",
-        "styleType": "point"
-    },
-    {
-        "name": "线",
-        "type": "polyline",
-        "iconImg": "./easy3d/images/plot/polyline.png",
-        "styleType": "polyline",
-        "style": {
-            "clampToGround": true,
-            "color": "#ffff00"
-        }
-    },
-    {
-        "name": "面",
-        "type": "polygon",
-        "iconImg": "./easy3d/images/plot/polygon.png",
-        "styleType": "polygon",
-        "style": {
-            "color": "#00FFFF",
-            "colorAlpha": 0.3,
-            "outline": true,
-            "outlineColor": "#ff0000",
-            "heightReference": 1
-        }
-    },
-    {
-        "name": "图标",
-        "type": "billboard",
-        "iconImg": "./easy3d/images/plot/billboard.png",
-        "style": {
-            "image": markerimg
-        },
-        "styleType": "billboard"
-    },
-    {
-        "name": "文字",
-        "type": "label",
-        "iconImg": "./easy3d/images/plot/label.png",
-        "style": {
-            "text": "Easy3D",
-            "fillColor": "#fff",
-            "outline": false,
-            "outlineWidth": 1,
-            "outlineColor": "#ff0000",
-            "heightReference": 0,
-            "showBackground": true,
-            "backgroundColor": "#000",
-            "scale": 1
-        },
-        "styleType": "label"
-    }
-    ]
-})
-
-const { plotList } = toRefs(state);
-let plotDrawTool:any = undefined;
+const lon = ref<any>();
+const lat = ref<any>();
 onMounted(() => {
-    //@ts-ignore
-    viewer = new Cesium.Viewer('mapContainer', {
-        //@ts-ignore
-        imageryProvider: new Cesium.WebMapServiceImageryProvider({
-            url: "/public/Cesium1.61/Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg",
-        }),
-            skyBox: false,
-            skyAtmosphere: false,
-            animation: false,
-            timeline: false,
-            infoBox: false,
-            geocoder: false,
-            sceneModePicker: false,
-            fullscreenButton: true,
-            navigationInstructionsInitiallyVisible: false,
-            navigationHelpButton: false,
-            homeButton: true,
-            baseLayerPicker: false,
+  let viewer = new Cesium.Viewer('mapContainer', {
+    baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+      Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'))
+    ),
+    skyBox: false,
+    skyAtmosphere: false,
+    animation: false,
+    timeline: false,
+    infoBox: false,
+    geocoder: false,
+    sceneModePicker: false,
+    fullscreenButton: false,
+    navigationInstructionsInitiallyVisible: false,
+    navigationHelpButton: false,
+    homeButton: false,
+    baseLayerPicker: false,
+    enableCompass: false,
+  });
+  polyline(viewer, Cesium);
+  viewer.cesiumWidget.creditContainer.style.display = 'none';
 
-    });
+  // 获取坐标点
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
+  // handler设置输入动作
+  handler.setInputAction((movement) => {
+    const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
+    if (cartesian) {
+      // 将获取的坐标转换为经纬度
+      const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+      // 获取经度并将其从弧度转换为度
+      lon.value = Cesium.Math.toDegrees(cartographic.longitude).toFixed(4);
+      // 获取纬度并将其从弧度转换为度
+      localStorage.setItem('lon', lon.value);
+      lat.value = Cesium.Math.toDegrees(cartographic.latitude).toFixed(4);
+      localStorage.setItem('lat', lat.value);
 
-
-
-    // viewer.scene.backgroundColor = none
-
-    function switchToNightMode() {
-      viewer.scene.globe.enableLighting = false;
-      viewer.scene.skyBox.show = false;
-      viewer.scene.mode = Cesium.SceneMode.SCENE2D;
-      viewer.imageryLayers.lower(nightLayer);
+      // 获取高度
+      const heightString = cartographic.height;
     }
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE); //指定监听的事件类型为鼠标移动
 
-    function switchToDayMode() {
-      viewer.scene.globe.enableLighting = true;
-      viewer.scene.skyBox.show = true;
-      viewer.scene.mode = Cesium.SceneMode.SCENE3D;
-      viewer.imageryLayers.raise(nightLayer);
+  // 鼠标右键
+  handler.setInputAction((movement) => {
+    const cartesian = viewer.camera._position;
+    console.log(cartesian, 89);
+
+    if (cartesian) {
+      // 转换为不包含地形的笛卡尔坐标
+      let cartesian1 = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+      let cartesian2 = viewer.scene.globe.ellipsoid.cartesianToCartographic(cartesian1);
+      let longitude = ((cartesian2.longitude * 180) / Math.PI).toFixed(4);
+      let latitude = ((cartesian2.latitude * 180) / Math.PI).toFixed(4);
+
+      console.log(longitude, latitude, 987);
+      let cameraObj = {
+        position: viewer.camera.position,
+        heading: viewer.camera.heading,
+        pitch: viewer.camera.pitch,
+      };
     }
+  }, Cesium.ScreenSpaceEventType.RIGHT_CLICK); //指定监听的事件类型为鼠标移
 
+  // 设置默认位置
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(106.26667, 38.46667, 10000000.0),
+    orientation: {
+      heading: 6.283185307179586,
+      pitch: -1.5686521559334161,
+      roll: 0,
+    },
+  });
 
-    plotDrawTool = new Tool(viewer, {
-        canEdit: true,
-    });
-    viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
-        Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)
+  // const startPoint = [
+  //   7292687.487964332,
 
+  //   -55393460.97952435,
+
+  //   39349949.17105431,
+  // ];
+  // // 将世界坐标转换为经纬度高度
+  // let cartesian3 = new Cesium.Cartesian3(
+  //   Math.abs(startPoint[0]),
+  //   Math.abs(startPoint[1]),
+  //   Math.abs(startPoint[1]),
+  //   startPoint[2]
+  // );
+  // let cartographic1 = Cesium.Cartographic.fromCartesian(cartesian3);
+  // let lat = 180 - Cesium.Math.toDegrees(cartographic1.latitude);
+  // let lon = Cesium.Math.toDegrees(cartographic1.longitude);
+  // let alt = cartesian3.height;
+  // console.log(lat, 988);
 });
-// document.getElementsByClassName("cesium-viewer-bottom")[0].style.display = "none";
-const start = (item: any) => {
-    item = JSON.parse(JSON.stringify(item)); // 数据隔离
-    if (!plotDrawTool) return;
-
-    plotDrawTool.start(item);
-}
-const showData = () => {
-    var showJson =JSON.parse(sessionStorage.getItem('jsonData'))
-    plotDrawTool.showData(showJson)
-}
-const saveData = () => {
-    plotDrawTool.saveData()
-}
-
-const clear = () => {
-    if (!plotDrawTool) return;
-    plotDrawTool.removeAll();
-}
 </script>
 
-<style scoped>
-.box {
-    width: 100%;
-    height: 100%;
-}
-#mapContainer {
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-    background-color: none;
-}
-
-.toolbar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 99;
-}
-
-.toolbar-btn {
-    margin: 10px;
-}
-</style>
+<style scoped src="./index.scss"></style>

@@ -1,9 +1,8 @@
-// import { fileURLToPath, URL } from 'node:url'
+import path from 'node:path'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import requireTransform from 'vite-plugin-require-transform';
-import electronBuilder from "electron-builder"
 
 
 
@@ -14,25 +13,23 @@ export default defineConfig({
   //     __dirname: true
   //   }
   // }
-  electronBuilder: {
-    preload: './electron-preload.js',
-  },
   server: {
     // mimeTypes:{
     //   'text/css': ["css"]
     // }
   },
   devServer: {
-    open: true
+    open: true,
+    host: true
   },
   plugins: [vue(),
-    requireTransform({
-      fileRegex: /.js$|.vue$/
-    }),
+  requireTransform({
+    fileRegex: /.js$|.vue$/
+  }),
   ],
   resolve: {
     alias: {
-      // '@': path.resolve(__dirname,"src")
+      '@': path.resolve(__dirname, "src")
     }
   }
 })

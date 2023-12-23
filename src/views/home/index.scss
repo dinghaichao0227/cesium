@@ -1,0 +1,17 @@
+#mapContainer {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: none;
+  position: relative;
+
+  z-index: 200;
+}
+.lonLat {
+  position: absolute;
+  bottom: 0px;
+  z-index:300;
+
+
+}
