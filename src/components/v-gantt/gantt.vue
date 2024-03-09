@@ -145,8 +145,7 @@
 </template>
 
 <script>
-import { useCounterStore } from "@/pinia/index.ts"
-
+import { useCounterStore } from '@/pinia/index.ts';
 
 import dayjs from 'dayjs';
 import ResizeObserver from 'resize-observer-polyfill';
@@ -435,7 +434,6 @@ export default {
     }, 1000);
 
     scroller.on('scroll', this.scrollHandler);
-
   },
 
   methods: {
@@ -536,7 +534,7 @@ export default {
     pasteBlock() {
       if (this.cutBlock) {
         this.setCurrentBlock.setCurrentBlock(this.cutBlock);
-        this.$bus.$emit('dragTask');
+        // this.$bus.$emit('dragTask');
       }
     },
     /*交换*/
@@ -546,7 +544,7 @@ export default {
         this.setCurrentRow.setCurrentRow(this.cutRow);
         this.setTargetBlock.setTargetBlock(this.handleBlock);
         this.setTargetRow.setTargetRow(this.handleRow);
-        this.$bus.$emit('dragTask');
+        // this.$bus.$emit('dragTask');
       }
     },
     dropToRow(event, rowData) {
@@ -554,7 +552,7 @@ export default {
       this.setCurrentRow.setCurrentRow(null);
       this.setTargetBlock.setTargetBlock(null);
       this.setTargetRow.setTargetRow(rowData);
-      this.$bus.$emit('dragTask');
+      // this.$bus.$emit('dragTask');
     },
   },
 };

@@ -21,6 +21,26 @@ const routes: Array<RouteRecordRaw> = [
     path: '/map',
     name: 'map',
     component: () => import("../views/map/index.vue")
+  },
+  {
+    path: '/heatmap',
+    name: 'heatmap',
+    component: () => import("../views/heatmap/heatmap.vue")
+  },
+  {
+    path: '/area',
+    name: 'area',
+    component: () => import("../views/area/area.vue")
+  },
+  {
+    path: '/table',
+    name: 'table',
+    component: () => import("../views/table/index.vue")
+  },
+  {
+    path: '/fruit',
+    name: 'fruit',
+    component: () => import("../views/fruit/index.vue")
   }
 ];
 

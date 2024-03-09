@@ -1,68 +1,46 @@
 <template>
-    <div class="nishh" >
-      <div v-for="i in 500" :key="i">{{i}}</div>
-    </div>
-
   <div class="gantt-timeline">
-    <div
-      v-if="lazy"
-      class="gantt-timeline-padding_block"
-      :style="{ width: paddingWidth + 'px' }"
-    >
-    </div>
-      <template v-for="(day, index) in allDayBlocks">
-        <div
-          class="gantt-timeline-block"
-          v-if="!lazy || isInRenderingDayRange(day)"
-          :style="{ width: getTimeScales(day).length * cellWidth + 'px' }"
-          :key="index"
-        >
-          <slot :day="day" :getTimeScales="getTimeScales">
-            <div class="gantt-timeline-day " :style="heightStyle">
-              {{ day.format("MM/DD") }}
+    <div v-if="lazy" class="gantt-timeline-padding_block" :style="{ width: paddingWidth + 'px' }"></div>
+    <template v-for="(day, index) in allDayBlocks">
+      <div
+        class="gantt-timeline-block"
+        v-if="!lazy || isInRenderingDayRange(day)"
+        :style="{ width: getTimeScales(day).length * cellWidth + 'px' }"
+        :key="index"
+      >
+        <slot :day="day" :getTimeScales="getTimeScales">
+          <div class="gantt-timeline-day" :style="heightStyle">
+            {{ day.format('MM/DD') }}
+          </div>
+          <div v-if="!isDayScale" class="gantt-timeline-scale" :style="heightStyle">
+            <div :style="cellWidthStyle" v-for="(time, index) in getTimeScales(day)" :key="index">
+              {{ scale >= 60 ? time.format('HH') : time.format('HH:mm') }}
             </div>
-            <div
-              v-if="!isDayScale"
-              class="gantt-timeline-scale "
-              :style="heightStyle"
-            >
-              <div
-                :style="cellWidthStyle"
-                v-for="(time, index) in getTimeScales(day)"
-                :key="index"
-              >
-                {{ scale >= 60 ? time.format("HH") : time.format("HH:mm") }}
-              </div>
-            </div>
-          </slot>
-        </div>
-      </template>
+          </div>
+        </slot>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
-import dayjs from "dayjs";
-import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
-import isBetween from "dayjs/plugin/isBetween";
-
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isBetween from 'dayjs/plugin/isBetween';
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
 
-import {
-  isDayScale,
-  MINUTE_OF_ONE_DAY,
-  getBeginTimeOfTimeLine
-} from "@/utils/timeLineUtils.js";
+import { isDayScale, MINUTE_OF_ONE_DAY, getBeginTimeOfTimeLine } from '@/utils/timeLineUtils.js';
 
 const START_DAY = Symbol();
 const MIDDLE_DAY = Symbol();
 const END_DAY = Symbol();
 
 function isSameDay(one, two) {
-  return one.isSame(two, "day");
+  return one.isSame(two, 'day');
 }
 
 function isSameOrBetween(start, end, mid) {
@@ -70,41 +48,41 @@ function isSameOrBetween(start, end, mid) {
 }
 
 export default {
-  name: "Timeline",
+  name: 'Timeline',
 
   props: {
     start: {
-      type: dayjs
+      type: dayjs,
     },
     end: {
-      type: dayjs
+      type: dayjs,
     },
     cellWidth: {
-      type: Number
+      type: Number,
     },
     titleHeight: {
-      type: Number
+      type: Number,
     },
     scale: {
-      type: Number
+      type: Number,
     },
     endTimeOfRenderArea: [dayjs, null],
     startTimeOfRenderArea: [dayjs, null],
     getPositionOffset: {
-      type: Function
+      type: Function,
     },
     lazy: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
 
   computed: {
     startDayOfRenderArea() {
-      return this.startTimeOfRenderArea.startOf("day");
+      return this.startTimeOfRenderArea.startOf('day');
     },
     endDayOfRenderArea() {
-      return this.endTimeOfRenderArea.endOf("day");
+      return this.endTimeOfRenderArea.endOf('day');
     },
     paddingWidth() {
       const { allDayBlocks, scale, startDayOfRenderArea } = this;
@@ -112,10 +90,7 @@ export default {
         console.log(day, 555);
         if (
           scale >= MINUTE_OF_ONE_DAY &&
-          startDayOfRenderArea.isBetween(
-            day,
-            day.add(scale / MINUTE_OF_ONE_DAY, "day")
-          )
+          startDayOfRenderArea.isBetween(day, day.add(scale / MINUTE_OF_ONE_DAY, 'day'))
         ) {
           return true;
         } else {
@@ -139,26 +114,25 @@ export default {
     allDayBlocks() {
       const temp = [];
       let { start, end, scale, isDayScale } = this;
-      let tempStart = start.clone().startOf("day");
-      let addNum =
-        isDayScale && scale > MINUTE_OF_ONE_DAY ? scale / MINUTE_OF_ONE_DAY : 1;
+      let tempStart = start.clone().startOf('day');
+      let addNum = isDayScale && scale > MINUTE_OF_ONE_DAY ? scale / MINUTE_OF_ONE_DAY : 1;
       while (tempStart.isSameOrBefore(end)) {
         temp.push(tempStart);
-        tempStart = tempStart.add(addNum, "day");
+        tempStart = tempStart.add(addNum, 'day');
       }
       return temp;
     },
     cellWidthStyle() {
       return {
-        width: `${this.cellWidth}px`
+        width: `${this.cellWidth}px`,
       };
     },
     heightStyle() {
       return {
-        height: this.titleHeight / (this.isDayScale ? 1 : 2) + "px",
-        "line-height": this.titleHeight / (this.isDayScale ? 1 : 2) + "px"
+        height: this.titleHeight / (this.isDayScale ? 1 : 2) + 'px',
+        'line-height': this.titleHeight / (this.isDayScale ? 1 : 2) + 'px',
       };
-    }
+    },
   },
 
   methods: {
@@ -166,10 +140,7 @@ export default {
       const { startDayOfRenderArea, endDayOfRenderArea, scale } = this;
       if (
         scale >= MINUTE_OF_ONE_DAY &&
-        startDayOfRenderArea.isBetween(
-          day,
-          day.add(scale / MINUTE_OF_ONE_DAY, "day")
-        )
+        startDayOfRenderArea.isBetween(day, day.add(scale / MINUTE_OF_ONE_DAY, 'day'))
       ) {
         return true;
       } else return !!isSameOrBetween(startDayOfRenderArea, endDayOfRenderArea, day);
@@ -208,27 +179,27 @@ export default {
           if (isSameDay(start, end)) {
             b = end;
           } else {
-            b = start.endOf("day");
+            b = start.endOf('day');
           }
           break;
         case END_DAY: //和end 同一天
-          a = end.startOf("day");
+          a = end.startOf('day');
           b = end;
           break;
         case MIDDLE_DAY: //start和end中间的天
-          a = start.startOf("day");
-          b = start.endOf("day");
+          a = start.startOf('day');
+          b = start.endOf('day');
           break;
         default:
-          throw new TypeError("错误的计算类型");
+          throw new TypeError('错误的计算类型');
       }
       while (!a.isAfter(b)) {
         totalblock.push(a);
-        a = a.add(scale, "minute");
+        a = a.add(scale, 'minute');
       }
 
       return totalblock;
-    }
-  }
+    },
+  },
 };
 </script>

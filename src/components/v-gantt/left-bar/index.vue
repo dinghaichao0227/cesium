@@ -4,7 +4,7 @@
       class="gannt-group-menu"
       :style="{
         width: '100%',
-        height: cellHeight + 'px'
+        height: cellHeight + 'px',
       }"
     >
       <div class="type-title">
@@ -18,16 +18,11 @@
           </div>
         </template>
         <template v-else>
-          <div class="classify-tag">
-            全部
-          </div>
+          <div class="classify-tag">全部</div>
         </template>
       </div>
       <div
-        :class="[
-          'btn-toggle',
-          isOpen ? 'el-icon-arrow-down' : 'el-icon-arrow-right'
-        ]"
+        :class="['btn-toggle', isOpen ? 'el-icon-arrow-down' : 'el-icon-arrow-right']"
         @click="toggleOpen(groupIndex)"
       />
     </div>
@@ -36,14 +31,14 @@
       ref="wrapperElement"
       class="left-bar-wrapper"
       :style="{
-        height: datas.length * cellHeight + 'px'
+        height: datas.length * cellHeight + 'px',
       }"
     >
       <div
         class="gantt-leftbar-item"
         :style="{
           top: data.rawIndex * cellHeight + 'px',
-          height: `${cellHeight}px`
+          height: `${cellHeight}px`,
         }"
         v-for="(data, index) in showDatas"
         :key="dataKey ? data[dataKey] : index"
@@ -57,34 +52,34 @@
 </template>
 
 <script>
-import dr from "../mixin/dynamic-render.js";
+import dr from '../mixin/dynamic-render.js';
 
 export default {
-  name: "LeftBar",
+  name: 'LeftBar',
   mixins: [dr],
   props: {
     dataKey: String,
     unVisibleHeight: {
       type: Number,
-      required: true
+      required: true,
     },
     datas: {
       type: Array,
-      required: true
+      required: true,
     },
     groupType: {
       type: Object,
-      default: () => {}
+      default: () => {},
     },
     groupIndex: {
       type: Number,
-      default: () => 0
-    }
+      default: () => 0,
+    },
   },
   methods: {
     toggleOpen(groupIndex) {
-      this.$bus.$emit("toggleGroupOpen", groupIndex);
-    }
-  }
+      // this.$bus.$emit("toggleGroupOpen", groupIndex);
+    },
+  },
 };
 </script>

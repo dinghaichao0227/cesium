@@ -17,7 +17,8 @@ export const polyline = (viewer: any, Cesium: any) => {
     { lon: 130.39, lat: 51.9 },
     { lon: 142.39, lat: 52.9 },
     { lon: 154.39, lat: 53.9 },
-
+    { lon: -114.39, lat: 53.9 },
+    { lon: -154.39, lat: 53.9 },
     // ... 更多的点
   ];
   // 添加轨迹线

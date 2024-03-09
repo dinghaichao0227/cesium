@@ -24,7 +24,7 @@ onMounted(() => {
     timeline: true,
     infoBox: false,
     geocoder: false,
-    sceneModePicker: false,
+    sceneModePicker: true,
     fullscreenButton: false,
     navigationInstructionsInitiallyVisible: false,
     navigationHelpButton: false,
