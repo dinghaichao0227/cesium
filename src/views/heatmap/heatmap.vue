@@ -21,10 +21,10 @@ export default {
     var height = 400;
 
     //点坐标的矩形范围
-    var latMin = 28.364807;
-    var latMax = 100.251095;
-    var lonMin = 24.389228;
-    var lonMax = 100.666357;
+    var latMin = 30.364807;
+    var latMax = 50.251095;
+    var lonMin = 34.389228;
+    var lonMax = 50.666357;
 
     //随机创建300个点（经度、纬度、热力值）
     var dataRaw = [];
@@ -80,6 +80,15 @@ export default {
       enableCompass: false,
     });
 
+    // 设置默认位置
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(114.26667, 32.46667, 30000000.0),
+      orientation: {
+        heading: 6.283185307179586,
+        pitch: -1.5686521559334161,
+        roll: 10,
+      },
+    });
     viewer._cesiumWidget._creditContainer.style.display = 'none';
 
     var canvas = document.getElementsByClassName('heatmap-canvas');
@@ -103,7 +112,7 @@ export default {
 <style scoped>
 #cesiumContainer {
   width: 100%;
-  height: 100%;
+  height: 100vh;
   margin: 0;
   padding: 0;
   overflow: hidden;

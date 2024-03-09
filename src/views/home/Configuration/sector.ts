@@ -6,7 +6,7 @@ export const sector = (Cesium: any, viewer: any) => {
   let startAngle = 0;
   let endAngle = -90;
   // 扇形的半径（米）
-  let radius = 1000000;
+  let radius = 100000;
   // 扇形边缘上的点数
   let numberOfPoints = 100;
   // 计算扇形边缘上的点集
