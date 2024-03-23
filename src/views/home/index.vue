@@ -17,6 +17,7 @@ import { pointAll } from './configuration/pointAll';
 import { sports } from './configuration/run';
 import { point } from './configuration/point';
 import { sector } from './configuration/sector';
+import { billboard } from './configuration/billboard';
 // import { area } from './configuration/area'
 
 import { ploygon } from './configuration/ploygon';
@@ -119,7 +120,14 @@ onMounted(() => {
   /**
    * 点的运动程序
    */
+
   pointAll(Cesium, viewer);
+
+  /**
+   * 定位贴图
+   */
+  let psList = [{ lon: 142.39, lat: 18.9 }];
+  billboard(Cesium, viewer, psList);
 
   /**
    * 运动轨迹
