@@ -125,7 +125,10 @@ onMounted(() => {
    * 运动轨迹
    */
 
+  // setTimeout(() => {
   sports(Cesium, viewer);
+  viewer.clock.shouldAnimate = false; // 控制时间轴的开始和结束
+  // }, 1000);
 
   /**
    * 画线
