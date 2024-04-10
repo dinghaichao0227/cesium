@@ -538,6 +538,7 @@ setTimeout(() => {
     });
   });
 
+  graph.value.on('node:added', (e) => {});
   graph.value.on('cell:mousemove', (e) => {
     if (this.isPress) {
       try {
@@ -644,6 +645,7 @@ const preWork = () => {
     }
   `);
 };
+
 onMounted(() => {
   info();
   preWork();
