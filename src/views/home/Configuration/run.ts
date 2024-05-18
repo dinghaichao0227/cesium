@@ -30,7 +30,7 @@ export const sports = (Cesium: any, viewer: any) => {
           },
         },
         width: 8,
-        leadTime: 10,
+        leadTime: 1,
         trailTime: 10000,
         resolution: 5,
       },

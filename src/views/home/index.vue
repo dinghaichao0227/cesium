@@ -32,6 +32,13 @@ let polygonViwer = {};
 onMounted(() => {
   let viewer = new Cesium.Viewer('mapContainer', {
     sceneMode: Cesium.SceneMode.SCENE2D,
+
+    // google 瓦片贴图
+    baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+      Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'))
+    ),
+    // 普通瓦片贴图
+
     baseLayer: Cesium.ImageryLayer.fromProviderAsync(
       Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'))
     ),
