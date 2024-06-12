@@ -28,7 +28,7 @@ import { Stencil } from '@antv/x6-plugin-stencil';
 // import {mapMutations, mapState} from "vuex";
 import { useCounterStore } from '@/pinia/index.ts';
 import datum from './datum.json';
-import { mockDatas } from '@/axios/api/mock-data';
+// import { mockDatas } from '@/axios/api/mock-data';
 
 export default {
   name: 'App',
