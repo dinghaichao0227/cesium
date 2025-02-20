@@ -57,7 +57,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'tableRow',
     component: () => import("../views/tableRow/index.vue")
   },
-  
+  ,
+  {
+    path: '/gantt',
+    name: 'gantt',
+    component: () => import("../views/gantt/index.vue")
+  },
 ];
 
 export default routes;
