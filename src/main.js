@@ -43,6 +43,13 @@ const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 const app = createApp(App)
 
+// 这是全局封装组件的第一种写法，
+import sectionView from "./components/section/sectionView.vue"
+const _sectionView = app.component("sectionView", sectionView)
+// @ts-ignore
+app.use(_sectionView)
+
+
 /** 全局定义日志滚动效果 */
 app.directive("scrollBottom", {
   updated(el) {
