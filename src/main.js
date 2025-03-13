@@ -44,10 +44,18 @@ pinia.use(piniaPluginPersistedstate)
 const app = createApp(App)
 
 // 这是全局封装组件的第一种写法，
-import sectionView from "./components/section/sectionView.vue"
-const _sectionView = app.component("sectionView", sectionView)
-// @ts-ignore
-app.use(_sectionView)
+// import sectionView from "./components/section/sectionView.vue"
+// const _sectionView = app.component("sectionView", sectionView)
+// // @ts-ignore
+// app.use(_sectionView)
+
+
+// 这是第二种写法全局封装组件
+import section from "./components/index.ts"
+app.use(section)
+
+
+
 
 
 /** 全局定义日志滚动效果 */
