@@ -126,7 +126,7 @@ onMounted(() => {
     },
   });
 
-  // 绘制风场图（动态粒子流动）
+  // 绘制风场图（动态粒子流动 + 风向风速可调面板）
   const wind = windField(
     Cesium,
     viewer,
@@ -142,9 +142,13 @@ onMounted(() => {
       showArrows: false, // 需要同时看静态箭头时置为 true
       showLabels: false,
       showLegend: true,
+      showControls: true, // 右上角参数调节面板（粒子数/速度/拖尾/粗细 + 图层开关）
+      showProbe: true, // 鼠标悬停显示风向罗盘 + 风速 + 蒲福风级
     }
   );
   // wind.stop() / wind.start() / wind.hide() / wind.remove()
+  // wind.setSettings({ particleCount: 3000, showArrows: true })
+  // wind.sample(105, 35) -> { u, v, speed, direction }
 
   // 绘制降雨场图（动态雨滴 + 色块脉动）
   const rain = rainfallField(
