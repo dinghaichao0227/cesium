@@ -159,11 +159,14 @@ function compassOf(direction: number) {
 
 /** 风速色阶（归一化位置 -> 颜色），用于颜色插值与图例 */
 const WIND_COLOR_STOPS: { stop: number; rgb: [number, number, number] }[] = [
-  { stop: 0, rgb: [40, 80, 200] },
-  { stop: 0.25, rgb: [0, 170, 200] },
-  { stop: 0.5, rgb: [40, 190, 80] },
-  { stop: 0.75, rgb: [250, 200, 40] },
-  { stop: 1, rgb: [220, 40, 40] },
+  { stop: 0, rgb: [30, 70, 180] },
+  { stop: 0.15, rgb: [0, 140, 220] },
+  { stop: 0.35, rgb: [0, 200, 180] },
+  { stop: 0.5, rgb: [60, 220, 100] },
+  { stop: 0.65, rgb: [180, 240, 60] },
+  { stop: 0.8, rgb: [255, 220, 40] },
+  { stop: 0.9, rgb: [255, 140, 40] },
+  { stop: 1, rgb: [255, 60, 80] },
 ];
 
 const LEGEND_DOM_ID = 'wind-field-legend';
@@ -219,10 +222,10 @@ export const windField = (
   // 可运行时调节的显示参数
   const settings: WindFieldSettings = {
     animate,
-    particleCount: opts.particleCount ?? 1500,
-    speedFactor: opts.speedFactor ?? 0.08,
-    trailFade: opts.trailFade ?? 0.93,
-    particleWidth: opts.particleWidth ?? 1.6,
+    particleCount: opts.particleCount ?? 5000,
+    speedFactor: opts.speedFactor ?? 0.04,
+    trailFade: opts.trailFade ?? 0.94,
+    particleWidth: opts.particleWidth ?? 1.2,
     showArrows,
     showLabels,
     labelStep,
@@ -259,7 +262,7 @@ export const windField = (
     speedFactor: settings.speedFactor,
     trailFade: settings.trailFade,
     particleWidth: settings.particleWidth,
-    maxAge: opts.maxAge ?? 140,
+    maxAge: opts.maxAge ?? 200,
     colorMax,
   });
   if (settings.animate) animator.start();
@@ -520,25 +523,50 @@ function createParticleAnimator(
           const [r, g, b] = interpolateStops(ratio);
           // 生命周期两端淡入淡出，避免粒子突然出现/消失
           const lifeAlpha = Math.min(1, Math.min(p.age, opts.maxAge - p.age) / 12);
-          // 风速越大线越粗，形成"强风更醒目"的层次感
-          const width = opts.particleWidth * (0.6 + ratio * 0.9);
 
-          // 高速粒子加一层柔光，视觉上像发亮的气流
-          if (ratio > 0.55) {
-            ctx.lineWidth = width * 2.6;
-            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.1 * lifeAlpha})`;
+          // 绘制天气风场流线效果
+          const dx = tx - p.sx;
+          const dy = ty - p.sy;
+          const length = Math.sqrt(dx * dx + dy * dy);
+
+          // 线条宽度根据风速变化，快速风更明显
+          const lineWidth = 1 + ratio * 2;
+
+          // 基础流线绘制
+          const baseAlpha = 0.6 + ratio * 0.25;
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${baseAlpha * lifeAlpha})`;
+          ctx.lineWidth = lineWidth;
+          ctx.beginPath();
+          ctx.moveTo(p.sx, p.sy);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+
+          // 高风速时添加发光效果
+          if (ratio > 0.6 && length > 2) {
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.5 * lifeAlpha})`;
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.9 * lifeAlpha})`;
+            ctx.lineWidth = lineWidth * 0.6;
+            ctx.beginPath();
+            ctx.moveTo(p.sx, p.sy);
+            ctx.lineTo(tx, ty);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+
+          // 流线头部渐变（增强流动方向感）
+          if (length > 3) {
+            const gradient = ctx.createLinearGradient(p.sx, p.sy, tx, ty);
+            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.5 * lifeAlpha})`);
+            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${baseAlpha * lifeAlpha})`);
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = lineWidth;
             ctx.beginPath();
             ctx.moveTo(p.sx, p.sy);
             ctx.lineTo(tx, ty);
             ctx.stroke();
           }
-
-          ctx.lineWidth = width;
-          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(0.35 + ratio * 0.6) * lifeAlpha})`;
-          ctx.beginPath();
-          ctx.moveTo(p.sx, p.sy);
-          ctx.lineTo(tx, ty);
-          ctx.stroke();
         }
       }
 
@@ -762,19 +790,75 @@ function buildArrowPositions(
 /**
  * 生成风场网格数据（模拟数据，接入真实数据时用 options.data 传入）
  * 先构造连续的 u/v 场，再反算风速风向，保证相邻格点不会突变。
+ * 改进：生成更接近真实天气的风场模式，包含气旋、反气旋和锋面系统。
  */
 function generateWindData(bounds: WindFieldBounds, gridSize: number): WindPoint[] {
   const data: WindPoint[] = [];
   const lonStep = (bounds.maxLon - bounds.minLon) / gridSize;
   const latStep = (bounds.maxLat - bounds.minLat) / gridSize;
 
+  // 计算区域的中心点，用于生成局部风场模式
+  const centerLon = (bounds.minLon + bounds.maxLon) / 2;
+  const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+  const regionSize = Math.max(bounds.maxLon - bounds.minLon, bounds.maxLat - bounds.minLat);
+
+  // 定义多个天气系统（气旋、反气旋、高压脊、低压槽）
+  const systems = [
+    // 主气旋（低压中心，逆时针辐合）
+    { lon: centerLon - regionSize * 0.2, lat: centerLat + regionSize * 0.15, type: 'cyclone', strength: 6, scale: 0.4 },
+    // 反气旋（高压中心，顺时针辐散）
+    { lon: centerLon + regionSize * 0.25, lat: centerLat - regionSize * 0.2, type: 'anticyclone', strength: 5, scale: 0.35 },
+    // 副气旋
+    { lon: centerLon + regionSize * 0.1, lat: centerLat + regionSize * 0.25, type: 'cyclone', strength: 4, scale: 0.3 },
+  ];
+
   for (let i = 0; i <= gridSize; i++) {
     for (let j = 0; j <= gridSize; j++) {
       const lon = bounds.minLon + lonStep * j;
       const lat = bounds.minLat + latStep * i;
 
-      const u = 6 * Math.sin((lat / 18) * Math.PI) + 3 * Math.cos((lon / 25) * Math.PI);
-      const v = 5 * Math.cos((lon / 20) * Math.PI) + 2 * Math.sin((lat / 15) * Math.PI);
+      // 归一化到 [-1, 1] 范围，方便生成局部模式
+      const nx = (lon - centerLon) / (regionSize / 2);
+      const ny = (lat - centerLat) / (regionSize / 2);
+
+      // 基础西风带（中纬度地区的主导风向）
+      let u = 3 + Math.sin(lat * 0.1) * 2;
+      let v = Math.cos(lon * 0.08) * 1.5;
+
+      // 叠加天气系统的影响
+      for (const sys of systems) {
+        const dx = (lon - sys.lon) / (regionSize * sys.scale);
+        const dy = (lat - sys.lat) / (regionSize * sys.scale);
+        const distSq = dx * dx + dy * dy;
+        const influence = Math.exp(-distSq) * sys.strength;
+
+        if (sys.type === 'cyclone') {
+          // 气旋：逆时针旋转 + 向中心辐合
+          u += (-dy * influence) - (dx * influence * 0.3);
+          v += (dx * influence) - (dy * influence * 0.3);
+        } else {
+          // 反气旋：顺时针旋转 + 向外辐散
+          u += (dy * influence) + (dx * influence * 0.3);
+          v += (-dx * influence) + (dy * influence * 0.3);
+        }
+      }
+
+      // 添加大尺度波动（罗斯贝波）
+      u += Math.sin((lat / 10) * Math.PI) * 2;
+      v += Math.cos((lon / 12) * Math.PI) * 1.5;
+
+      // 添加随机扰动（模拟小尺度天气现象）
+      u += Math.sin(lon * 0.5 + lat * 0.3) * 0.8;
+      v += Math.cos(lon * 0.3 - lat * 0.5) * 0.8;
+
+      // 边缘衰减，减少边界效应
+      const edgeDist = Math.min(
+        Math.min((lon - bounds.minLon), (bounds.maxLon - lon)),
+        Math.min((lat - bounds.minLat), (bounds.maxLat - lat))
+      ) / regionSize;
+      const edgeFactor = Math.min(1, edgeDist * 3);
+      u *= edgeFactor;
+      v *= edgeFactor;
 
       const speed = Math.sqrt(u * u + v * v);
       // 由 u/v 反算气象风向（来向，北起顺时针）
@@ -938,10 +1022,10 @@ interface SliderDef {
 }
 
 const SLIDERS: SliderDef[] = [
-  { key: 'particleCount', label: '粒子数量', min: 200, max: 6000, step: 100, format: (v) => String(v) },
-  { key: 'speedFactor', label: '流动速度', min: 0.01, max: 0.3, step: 0.01, format: (v) => v.toFixed(2) },
-  { key: 'trailFade', label: '拖尾长度', min: 0.6, max: 0.99, step: 0.01, format: (v) => v.toFixed(2) },
-  { key: 'particleWidth', label: '粒子粗细', min: 0.5, max: 5, step: 0.1, format: (v) => v.toFixed(1) },
+  { key: 'particleCount', label: '粒子数量', min: 500, max: 8000, step: 100, format: (v) => String(v) },
+  { key: 'speedFactor', label: '流动速度', min: 0.01, max: 0.15, step: 0.005, format: (v) => v.toFixed(2) },
+  { key: 'trailFade', label: '拖尾长度', min: 0.8, max: 0.98, step: 0.005, format: (v) => v.toFixed(2) },
+  { key: 'particleWidth', label: '粒子粗细', min: 0.5, max: 4, step: 0.1, format: (v) => v.toFixed(1) },
   { key: 'labelStep', label: '标签间隔', min: 1, max: 8, step: 1, format: (v) => `每 ${v} 点` },
 ];
 

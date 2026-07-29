@@ -23,29 +23,80 @@
         </div>
         <div class="control-item">
           <label>风向 (°):</label>
-          <input v-model.number="windDirection" type="number" min="0" max="360" @change="updateWindField" :disabled="!showWind" />
+          <input
+            v-model.number="windDirection"
+            type="number"
+            min="0"
+            max="360"
+            @change="updateWindField"
+            :disabled="!showWind"
+          />
         </div>
         <div class="control-item">
           <label>风速:</label>
-          <input v-model.number="windSpeed" type="number" min="0" max="100" step="0.1" @change="updateWindField" :disabled="!showWind" />
+          <input
+            v-model.number="windSpeed"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            @change="updateWindField"
+            :disabled="!showWind"
+          />
         </div>
         <div class="control-item">
           <label>粒子数量:</label>
-          <input v-model.number="particleCount" type="number" min="100" max="5000" @change="updateWindField" :disabled="!showWind" />
+          <input
+            v-model.number="particleCount"
+            type="number"
+            min="100"
+            max="5000"
+            @change="updateWindField"
+            :disabled="!showWind"
+          />
         </div>
         <div class="control-item">
           <label>流速因子:</label>
-          <input v-model.number="speedFactor" type="number" min="0.01" max="1" step="0.01" @change="updateWindField" :disabled="!showWind" />
+          <input
+            v-model.number="speedFactor"
+            type="number"
+            min="0.01"
+            max="1"
+            step="0.01"
+            @change="updateWindField"
+            :disabled="!showWind"
+          />
         </div>
       </div>
 
       <div class="panel-section">
         <div class="section-header">
-          <h3>雨场控制</h3>
+          <h3>降水场控制</h3>
           <label class="toggle-switch">
             <input type="checkbox" v-model="showRain" @change="toggleRain" />
             <span class="slider"></span>
           </label>
+        </div>
+        <div class="control-item weather-type-toggle">
+          <label>降水类型:</label>
+          <div class="toggle-buttons">
+            <button
+              class="toggle-btn"
+              :class="{ active: weatherType === 'rain' }"
+              @click="setWeatherType('rain')"
+              :disabled="!showRain"
+            >
+              雨
+            </button>
+            <button
+              class="toggle-btn"
+              :class="{ active: weatherType === 'snow' }"
+              @click="setWeatherType('snow')"
+              :disabled="!showRain"
+            >
+              雪
+            </button>
+          </div>
         </div>
         <div class="control-buttons-row">
           <button @click="toggleRainAnimation" :disabled="!showRain">
@@ -54,20 +105,50 @@
           <button @click="resetRain" :disabled="!showRain">重置</button>
         </div>
         <div class="control-item">
-          <label>雨量:</label>
-          <input v-model.number="rainAmount" type="number" min="0" max="100" step="1" @change="updateRainField" :disabled="!showRain" />
+          <label>降水量:</label>
+          <input
+            v-model.number="rainAmount"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            @change="updateRainField"
+            :disabled="!showRain"
+          />
         </div>
         <div class="control-item">
-          <label>雨滴数量:</label>
-          <input v-model.number="dropCount" type="number" min="100" max="5000" @change="updateRainField" :disabled="!showRain" />
+          <label>{{ weatherType === 'snow' ? '雪花数量' : '雨滴数量' }}:</label>
+          <input
+            v-model.number="dropCount"
+            type="number"
+            min="100"
+            max="5000"
+            @change="updateRainField"
+            :disabled="!showRain"
+          />
         </div>
         <div class="control-item">
           <label>下落速度:</label>
-          <input v-model.number="fallSpeed" type="number" min="100" max="1000" @change="updateRainField" :disabled="!showRain" />
+          <input
+            v-model.number="fallSpeed"
+            type="number"
+            min="50"
+            max="1000"
+            @change="updateRainField"
+            :disabled="!showRain"
+          />
         </div>
         <div class="control-item">
           <label>倾斜度:</label>
-          <input v-model.number="slant" type="number" min="0" max="1" step="0.01" @change="updateRainField" :disabled="!showRain" />
+          <input
+            v-model.number="slant"
+            type="number"
+            min="0"
+            max="1.5"
+            step="0.01"
+            @change="updateRainField"
+            :disabled="!showRain"
+          />
         </div>
       </div>
 
@@ -124,9 +205,10 @@ const speedFactor = ref(0.09); // 流速因子
 const showRain = ref(true); // 雨场显示开关
 const rainAnimating = ref(true); // 雨场动画状态
 const rainAmount = ref(50); // 雨量
-const dropCount = ref(1400); // 雨滴数量
+const dropCount = ref(100); // 雨滴数量
 const fallSpeed = ref(420); // 下落速度
 const slant = ref(0.18); // 倾斜度
+const weatherType = ref<'rain' | 'snow'>('rain'); // 降水类型：雨 或 雪
 
 // 时间控制
 const duration = ref(60); // 时长（秒）
@@ -230,15 +312,16 @@ onMounted(() => {
   windInstance = windField(
     Cesium,
     viewerInstance,
-    { minLon: 70, minLat: 10, maxLon: 140, maxLat: 60 },
+    { minLon: 109.7113, minLat: 41.2052, maxLon: 110.9195, maxLat: 42.1053 },
     {
-      gridSize: 14,
+      gridSize: 8, // 减少网格密度，让每个格点更大
       directionConvention: 'meteo', // 气象风向：正北起、顺时针、表示风的来向
       animate: true, // 粒子动画
       particleCount: particleCount.value,
       speedFactor: speedFactor.value, // 越大流动越快
-      trailFade: 0.94, // 越大拖尾越长
-      particleWidth: 1.6,
+      trailFade: 0.88, // 降低拖尾保留率，让粒子轨迹更短更明显
+      particleWidth: 2, // 增加粒子宽度，更明显
+      maxAge: 100, // 减少粒子最大存活帧数，让粒子更频繁重新分布
       showArrows: false, // 需要同时看静态箭头时置为 true
       showLabels: false,
       showLegend: true,
@@ -251,24 +334,7 @@ onMounted(() => {
   // wind.sample(105, 35) -> { u, v, speed, direction }
 
   // 绘制降雨场图（动态雨滴 + 色块脉动）
-  rainInstance = rainfallField(
-    Cesium,
-    viewerInstance,
-    { minLon: 70, minLat: 10, maxLon: 140, maxLat: 60 },
-    {
-      gridSize: 10,
-      animate: true, // 雨滴动画
-      dropCount: dropCount.value,
-      fallSpeed: fallSpeed.value, // 下落速度 像素/秒
-      fallRange: 90, // 单个雨滴的下落行程 像素
-      slant: slant.value, // 雨丝倾斜度
-      dropThreshold: 2, // 小于 2mm 的区域不下雨
-      showCells: true, // 雨量色块
-      pulse: true, // 色块呼吸脉动
-      showLabels: false,
-      showLegend: true,
-    }
-  );
+  createRainField();
   // rain.stop() / rain.start() / rain.hide() / rain.remove()
 
   /**
@@ -440,34 +506,73 @@ const toggleRain = () => {
   if (!viewerInstance) return;
 
   if (showRain.value) {
-    // 重新创建雨场
-    rainInstance = rainfallField(
-      Cesium,
-      viewerInstance,
-      { minLon: 70, minLat: 10, maxLon: 140, maxLat: 60 },
-      {
-        gridSize: 10,
-        animate: true,
-        dropCount: dropCount.value,
-        fallSpeed: fallSpeed.value,
-        fallRange: 90,
-        slant: slant.value,
-        dropThreshold: 2,
-        showCells: true,
-        pulse: true,
-        showLabels: false,
-        showLegend: true,
-      }
-    );
+    // 重新创建降水场
+    createRainField();
     rainAnimating.value = true;
   } else {
-    // 销毁雨场
+    // 销毁降水场
     if (rainInstance) {
       rainInstance.remove();
     }
     rainAnimating.value = false;
   }
-  console.log('雨场显示:', showRain.value ? '开启' : '关闭');
+  console.log('降水场显示:', showRain.value ? '开启' : '关闭');
+};
+
+/**
+ * 切换降水类型（雨/雪）
+ */
+const setWeatherType = (type: 'rain' | 'snow') => {
+  if (weatherType.value === type || !showRain.value) return;
+
+  weatherType.value = type;
+
+  // 根据类型设置默认参数
+  if (type === 'snow') {
+    dropCount.value = 800;
+    fallSpeed.value = 120;
+    slant.value = 0.8;
+  } else {
+    dropCount.value = 100;
+    fallSpeed.value = 420;
+    slant.value = 0.18;
+  }
+
+  // 重新创建降水场
+  createRainField();
+  console.log('降水类型切换为:', type === 'snow' ? '雪' : '雨');
+};
+
+/**
+ * 创建降水场
+ */
+const createRainField = () => {
+  // 销毁旧的降水场
+  if (rainInstance) {
+    rainInstance.remove();
+  }
+
+  // 根据区域大小动态调整网格密度
+  // 当前区域约 1.2° × 0.9°，使用较小的 gridSize 让色块更大更清晰
+  rainInstance = rainfallField(
+    Cesium,
+    viewerInstance,
+    { minLon: 109.7113, minLat: 41.2052, maxLon: 110.9195, maxLat: 42.1053 },
+    {
+      gridSize: 5, // 减少到 5x5，让色块更大更清晰
+      animate: true,
+      weatherType: weatherType.value,
+      dropCount: dropCount.value,
+      fallSpeed: fallSpeed.value,
+      fallRange: 120, // 增加下落行程，让粒子覆盖更多区域
+      slant: slant.value,
+      dropThreshold: 2,
+      showCells: true,
+      pulse: true,
+      showLabels: false,
+      showLegend: true,
+    }
+  );
 };
 
 /**
@@ -477,29 +582,12 @@ const toggleRainAnimation = () => {
   if (rainInstance && showRain.value) {
     rainAnimating.value = !rainAnimating.value;
     rainAnimating.value ? rainInstance.start() : rainInstance.stop();
-    console.log('雨场动画:', rainAnimating.value ? '播放' : '暂停');
+    console.log('降水场动画:', rainAnimating.value ? '播放' : '暂停');
   } else if (showRain.value && viewerInstance) {
-    // 如果雨场不存在但开启状态，重新创建
-    rainInstance = rainfallField(
-      Cesium,
-      viewerInstance,
-      { minLon: 70, minLat: 10, maxLon: 140, maxLat: 60 },
-      {
-        gridSize: 10,
-        animate: true,
-        dropCount: dropCount.value,
-        fallSpeed: fallSpeed.value,
-        fallRange: 90,
-        slant: slant.value,
-        dropThreshold: 2,
-        showCells: true,
-        pulse: true,
-        showLabels: false,
-        showLegend: true,
-      }
-    );
+    // 如果降水场不存在但开启状态，重新创建
+    createRainField();
     rainAnimating.value = true;
-    console.log('雨场动画: 播放');
+    console.log('降水场动画: 播放');
   }
 };
 
@@ -529,32 +617,34 @@ const updateWindField = () => {
 const updateRainField = () => {
   if (!showRain.value || !viewerInstance) return;
 
-  // 销毁旧的雨场
+  // 销毁旧的降水场
   if (rainInstance) {
     rainInstance.remove();
   }
 
-  // 重新创建雨场
+  // 重新创建降水场
   rainInstance = rainfallField(
     Cesium,
     viewerInstance,
-    { minLon: 70, minLat: 10, maxLon: 140, maxLat: 60 },
+    { minLon: 109.7113, minLat: 41.2052, maxLon: 110.9195, maxLat: 42.1053 },
     {
       gridSize: 10,
-      animate: rainAnimating.value, // 雨滴动画
+      animate: rainAnimating.value, // 粒子动画
+      weatherType: weatherType.value,
       dropCount: dropCount.value,
       fallSpeed: fallSpeed.value, // 下落速度 像素/秒
-      fallRange: 90, // 单个雨滴的下落行程 像素
-      slant: slant.value, // 雨丝倾斜度
-      dropThreshold: 2, // 小于 2mm 的区域不下雨
-      showCells: true, // 雨量色块
+      fallRange: 90, // 单个粒子的下落行程 像素
+      slant: slant.value, // 粒子倾斜度
+      dropThreshold: 2, // 小于 2mm 的区域不下降水
+      showCells: true, // 降水量色块
       pulse: true, // 色块呼吸脉动
       showLabels: false,
       showLegend: true,
     }
   );
 
-  console.log('雨场已更新:', {
+  console.log('降水场已更新:', {
+    weatherType: weatherType.value,
     rainAmount: rainAmount.value,
     dropCount: dropCount.value,
     fallSpeed: fallSpeed.value,
@@ -583,7 +673,7 @@ const resetWind = () => {
  */
 const resetRain = () => {
   rainAmount.value = 50;
-  dropCount.value = 1400;
+  dropCount.value = 100;
   fallSpeed.value = 420;
   slant.value = 0.18;
   rainAnimating.value = true;
@@ -675,7 +765,7 @@ const resetAll = () => {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
@@ -731,6 +821,48 @@ const resetAll = () => {
   min-width: 100px;
   font-size: 14px;
   color: #555;
+}
+
+.weather-type-toggle {
+  align-items: flex-start;
+}
+
+.weather-type-toggle label {
+  padding-top: 8px;
+}
+
+.toggle-buttons {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #f5f5f5;
+  color: #666;
+}
+
+.toggle-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #ccc;
+}
+
+.toggle-btn.active {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .control-item input {

@@ -1,12 +1,12 @@
 /**
- * 降雨场图绘制（支持动态降雨动画）
+ * 降水场图绘制（支持雨雪动态动画）
  *
  * 渲染方式：
- * 1. 动态层：Canvas 覆盖层上跑雨滴。雨滴锚点是经纬度（跟随地图缩放/平移），
- *    下落位移是屏幕像素，因此俯视图上看起来是"雨落在地图上"。
- *    雨滴的播撒密度、下落速度、长度都按该点的降雨强度调制，
- *    暴雨区又密又快，无雨区几乎没有雨滴。
- * 2. 静态层（可选）：网格色块表示雨量分级，可开启呼吸式明暗脉动。
+ * 1. 动态层：Canvas 覆盖层上跑雨滴/雪花。粒子锚点是经纬度（跟随地图缩放/平移），
+ *    下落位移是屏幕像素，因此俯视图上看起来是"降水落在地图上"。
+ *    粒子的播撒密度、下落速度都按该点的降水量调制，
+ *    暴雨/暴雪区又密又快，无降水区几乎没有粒子。
+ * 2. 静态层（可选）：网格色块表示降水量分级，可开启呼吸式明暗脉动。
  */
 
 /** 单个降雨格点（值代表该格子左下角起的一个网格单元） */
@@ -30,20 +30,25 @@ export interface RainfallFieldOptions {
   /** 外部数据；传入后不再生成模拟数据 */
   data?: RainfallPoint[];
 
-  /** 是否开启雨滴动画，默认 true */
+  /** 降水类型：'rain' 雨 | 'snow' 雪，默认 'rain' */
+  weatherType?: 'rain' | 'snow';
+
+  /** 是否开启降水动画，默认 true */
   animate?: boolean;
-  /** 雨滴数量上限，默认 1200 */
+  /** 粒子数量上限，默认 1200 */
   dropCount?: number;
-  /** 雨滴下落速度 像素/秒（暴雨区），默认 420 */
+  /** 粒子下落速度 像素/秒，默认 420（雨）| 120（雪） */
   fallSpeed?: number;
-  /** 雨滴下落的屏幕行程 像素，超过即重播撒，默认 90 */
+  /** 粒子下落的屏幕行程 像素，超过即重播撒，默认 90 */
   fallRange?: number;
-  /** 雨滴斜率（横向偏移/纵向位移），默认 0.18 */
+  /** 粒子斜率（横向偏移/纵向位移），默认 0.18（雨）| 0.8（雪，飘荡感更强） */
   slant?: number;
-  /** 雨滴线宽，默认 1.1 */
+  /** 粒子线宽，默认 1.1（雨）| 3（雪） */
   dropWidth?: number;
-  /** 低于该雨量的区域不生成雨滴 mm，默认 2 */
+  /** 低于该降水量的区域不生成粒子 mm，默认 2 */
   dropThreshold?: number;
+  /** 雪花飘荡幅度，默认 0.3（仅雪场有效） */
+  snowDrift?: number;
 
   /** 是否绘制网格色块，默认 true */
   showCells?: boolean;
@@ -54,13 +59,13 @@ export interface RainfallFieldOptions {
   /** 是否显示网格边线，默认 false */
   showOutline?: boolean;
 
-  /** 是否显示雨量文字，默认 false */
+  /** 是否显示降水量文字，默认 false */
   showLabels?: boolean;
-  /** 只给超过该雨量的格子打标签 mm，默认 10 */
+  /** 只给超过该降水量的格子打标签 mm，默认 10 */
   labelThreshold?: number;
   /** 是否显示 HTML 图例，默认 true */
   showLegend?: boolean;
-  /** 颜色映射的雨量上限 mm，默认 100 */
+  /** 颜色映射的降水量上限 mm，默认 100 */
   colorMaxRainfall?: number;
   /** 数据源名称，默认 rainfallField */
   name?: string;
@@ -98,6 +103,7 @@ const RAIN_LEVELS: { min: number; rgb: [number, number, number]; alpha: number; 
 
 const LEGEND_DOM_ID = 'rainfall-field-legend';
 const CANVAS_DOM_ID = 'rainfall-field-canvas';
+const CANVAS_SNOW_DOM_ID = 'rainfall-field-snow-canvas';
 
 export const rainfallField = (
   Cesium: any,
@@ -109,6 +115,7 @@ export const rainfallField = (
   const opts: RainfallFieldOptions =
     typeof options === 'number' ? { gridSize: options } : options || {};
 
+  const weatherType = opts.weatherType ?? 'rain';
   const gridSize = opts.gridSize ?? 8;
   const animate = opts.animate ?? true;
   const showCells = opts.showCells ?? true;
@@ -117,12 +124,31 @@ export const rainfallField = (
   const labelThreshold = opts.labelThreshold ?? 10;
   const colorMax = opts.colorMaxRainfall ?? 100;
 
+  // 根据降水类型设置默认参数
+  const defaultParams = weatherType === 'snow' ? {
+    dropCount: opts.dropCount ?? 800,
+    fallSpeed: opts.fallSpeed ?? 120,
+    fallRange: opts.fallRange ?? 90,
+    slant: opts.slant ?? 0.8,
+    dropWidth: opts.dropWidth ?? 3,
+    dropThreshold: opts.dropThreshold ?? 2,
+    snowDrift: opts.snowDrift ?? 0.3,
+  } : {
+    dropCount: opts.dropCount ?? 1200,
+    fallSpeed: opts.fallSpeed ?? 420,
+    fallRange: opts.fallRange ?? 90,
+    slant: opts.slant ?? 0.18,
+    dropWidth: opts.dropWidth ?? 1.1,
+    dropThreshold: opts.dropThreshold ?? 2,
+    snowDrift: 0,
+  };
+
   const lonStep = (bounds.maxLon - bounds.minLon) / gridSize;
   const latStep = (bounds.maxLat - bounds.minLat) / gridSize;
 
   const data = opts.data?.length ? opts.data : generateRainfallData(bounds, gridSize);
 
-  // 雨量范围
+  // 降水量范围
   let minRainfall = Infinity;
   let maxRainfall = -Infinity;
   data.forEach((p) => {
@@ -148,24 +174,27 @@ export const rainfallField = (
       labelThreshold,
       pulse,
       pulsePeriod: opts.pulsePeriod ?? 3,
+      weatherType,
     });
   }
 
   if (opts.showLegend ?? true) {
-    drawRainfallLegend(viewer);
+    drawRainfallLegend(viewer, weatherType);
   }
 
   const animator = animate
     ? createRainAnimator(Cesium, viewer, data, bounds, {
         lonStep,
         latStep,
-        dropCount: opts.dropCount ?? 1200,
-        fallSpeed: opts.fallSpeed ?? 420,
-        fallRange: opts.fallRange ?? 90,
-        slant: opts.slant ?? 0.18,
-        dropWidth: opts.dropWidth ?? 1.1,
-        dropThreshold: opts.dropThreshold ?? 2,
+        dropCount: defaultParams.dropCount,
+        fallSpeed: defaultParams.fallSpeed,
+        fallRange: defaultParams.fallRange,
+        slant: defaultParams.slant,
+        dropWidth: defaultParams.dropWidth,
+        dropThreshold: defaultParams.dropThreshold,
+        snowDrift: defaultParams.snowDrift,
         colorMax,
+        weatherType,
       })
     : null;
 
@@ -201,17 +230,19 @@ export const rainfallField = (
 /* ---------------------------------------------------------------- 雨滴动画层 */
 
 interface Drop {
-  /** 锚点经纬度（雨滴落点所在的地理位置） */
+  /** 锚点经纬度（粒子落点所在的地理位置） */
   lon: number;
   lat: number;
   /** 已下落的屏幕像素距离 */
   offset: number;
   /** 下落速度 像素/秒 */
   speed: number;
-  /** 雨滴长度 像素 */
+  /** 粒子长度 像素（雨）或 大小（雪） */
   length: number;
-  /** 该点的雨量强度 0~1，决定颜色和透明度 */
+  /** 该点的降水量强度 0~1，决定颜色和透明度 */
   intensity: number;
+  /** 雪花飘荡相位（仅雪场有效） */
+  driftPhase?: number;
 }
 
 interface RainAnimatorOptions {
@@ -223,12 +254,14 @@ interface RainAnimatorOptions {
   slant: number;
   dropWidth: number;
   dropThreshold: number;
+  snowDrift: number;
   colorMax: number;
+  weatherType: 'rain' | 'snow';
 }
 
 /**
- * 在 Cesium 容器上叠一层 canvas 下雨。
- * 雨滴的地理锚点按"雨量加权"抽样，所以雨滴自然聚集在强降水区。
+ * 在 Cesium 容器上叠一层 canvas 下雨或下雪。
+ * 粒子的地理锚点按"降水量加权"抽样，所以粒子自然聚集在强降水区。
  */
 function createRainAnimator(
   Cesium: any,
@@ -239,6 +272,7 @@ function createRainAnimator(
 ) {
   const container: HTMLElement = viewer.container ?? document.body;
   document.getElementById(CANVAS_DOM_ID)?.remove();
+  document.getElementById(CANVAS_SNOW_DOM_ID)?.remove();
 
   const canvas = document.createElement('canvas');
   canvas.id = CANVAS_DOM_ID;
@@ -249,7 +283,7 @@ function createRainAnimator(
     width: '100%',
     height: '100%',
     pointerEvents: 'none',
-    // 比风场粒子层再高一层，雨在风之上
+    // 比风场粒子层再高一层，雨/雪在风之上
     zIndex: '6',
   } as CSSStyleDeclaration);
 
@@ -260,7 +294,7 @@ function createRainAnimator(
 
   const ctx = canvas.getContext('2d')!;
 
-  // 只保留达到阈值的格子，并按雨量构建累积分布，用于加权抽样
+  // 只保留达到阈值的格子，并按降水量构建累积分布，用于加权抽样
   const cells = data.filter((p) => p.rainfall >= opts.dropThreshold);
   const cumulative: number[] = [];
   let totalWeight = 0;
@@ -269,7 +303,7 @@ function createRainAnimator(
     cumulative.push(totalWeight);
   });
 
-  /** 按雨量加权随机取一个格子（二分查找累积分布） */
+  /** 按降水量加权随机取一个格子（二分查找累积分布） */
   const pickCell = (): RainfallPoint | null => {
     if (!cells.length || totalWeight <= 0) return null;
     const target = Math.random() * totalWeight;
@@ -289,14 +323,22 @@ function createRainAnimator(
       d.intensity = 0;
       return d;
     }
-    // 在格子内随机取点，雨滴不会排成网格状
+    // 在格子内随机取点，粒子不会排成网格状
     d.lon = cell.lon + Math.random() * opts.lonStep;
     d.lat = cell.lat + Math.random() * opts.latStep;
     const t = clamp(cell.rainfall / opts.colorMax, 0, 1);
     d.intensity = t;
-    // 强降水：更快、更长
-    d.speed = opts.fallSpeed * (0.45 + 0.55 * t) * (0.85 + Math.random() * 0.3);
-    d.length = (6 + 16 * t) * (0.8 + Math.random() * 0.4);
+
+    if (opts.weatherType === 'snow') {
+      // 雪：更慢、更大
+      d.speed = opts.fallSpeed * (0.6 + 0.4 * t) * (0.8 + Math.random() * 0.4);
+      d.length = (2 + 4 * t) * (0.7 + Math.random() * 0.6); // 雪花大小
+      d.driftPhase = Math.random() * Math.PI * 2; // 随机飘荡相位
+    } else {
+      // 雨：强降水：更快、更长
+      d.speed = opts.fallSpeed * (0.45 + 0.55 * t) * (0.85 + Math.random() * 0.3);
+      d.length = (6 + 16 * t) * (0.8 + Math.random() * 0.4);
+    }
     d.offset = Math.random() * opts.fallRange;
     return d;
   };
@@ -308,6 +350,32 @@ function createRainAnimator(
   };
 
   let dpr = 1;
+  // 获取当前视图的缩放级别（0-20）
+  const getZoomLevel = (): number => {
+    const cameraHeight = viewer.camera.positionCartographic.height;
+    // 近似计算缩放级别
+    // 高度 10000m -> zoom ~12
+    // 高度 100000m -> zoom ~10
+    // 高度 1000000m -> zoom ~8
+    // 高度 10000000m -> zoom ~2
+    const logHeight = Math.log10(Math.max(cameraHeight, 1));
+    const zoom = Math.max(0, 20 - (logHeight - 3) * 2);
+    return zoom;
+  };
+
+  // 根据缩放级别获取动态参数
+  const getDynamicParams = () => {
+    const zoom = getZoomLevel();
+    // 缩放级别越低（远景），参数越小
+    const zoomFactor = Math.min(1, Math.max(0.1, (zoom - 2) / 10));
+
+    return {
+      fallRange: opts.fallRange * zoomFactor,      // 下落范围
+      speed: opts.fallSpeed * zoomFactor * 1.5,     // 下落速度
+      slant: opts.slant * Math.min(1, zoomFactor * 2), // 倾斜度
+    };
+  };
+
   const resize = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round((container.clientWidth || 1) * dpr);
@@ -321,10 +389,24 @@ function createRainAnimator(
     Cesium.SceneTransforms.wgs84ToWindowCoordinates;
   const scratchCartesian = new Cesium.Cartesian3();
   const scratchWindow = new Cesium.Cartesian2();
+  const scratchCartographic = new Cesium.Cartographic();
 
   const project = (lon: number, lat: number): any => {
     Cesium.Cartesian3.fromDegrees(lon, lat, 0, undefined, scratchCartesian);
     return toWindow.call(Cesium.SceneTransforms, viewer.scene, scratchCartesian, scratchWindow);
+  };
+
+  // 检查经纬度是否在边界内
+  const isInBounds = (lon: number, lat: number): boolean => {
+    return lon >= bounds.minLon && lon <= bounds.maxLon && lat >= bounds.minLat && lat <= bounds.maxLat;
+  };
+
+  // 屏幕坐标反投影到经纬度
+  const windowToCartographic = (x: number, y: number): any => {
+    const ray = viewer.camera.getPickRay(new Cesium.Cartesian2(x, y));
+    const intersection = viewer.scene.globe.pick(ray, viewer.scene);
+    if (!intersection) return null;
+    return Cesium.Cartographic.fromCartesian(intersection, viewer.scene.globe.ellipsoid, scratchCartographic);
   };
 
   let rafId = 0;
@@ -338,37 +420,86 @@ function createRainAnimator(
 
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
-    // 雨滴是逐帧重画的短线，直接清屏（拖尾感由雨滴自身长度提供）
+    // 逐帧重画，直接清屏
     ctx.clearRect(0, 0, w, h);
 
-    ctx.lineWidth = opts.dropWidth;
-    ctx.lineCap = 'round';
+    // 获取动态参数
+    const params = getDynamicParams();
 
-    for (const d of drops) {
-      if (d.intensity <= 0) continue;
+    if (opts.weatherType === 'snow') {
+      // 雪场：画圆形粒子
+      for (const d of drops) {
+        if (d.intensity <= 0) continue;
 
-      d.offset += d.speed * dt;
-      if (d.offset > opts.fallRange) {
-        respawn(d);
-        d.offset = 0;
+        d.offset += d.speed * dt;
+        if (d.offset > params.fallRange) {
+          respawn(d);
+          d.offset = 0;
+        }
+
+        const win = project(d.lon, d.lat);
+        if (!win) continue;
+        // 视野外不画
+        if (win.x < -50 || win.x > w + 50 || win.y < -50 || win.y > h + 50) continue;
+
+        // 屏幕空间下落：y 向下增长，x 按 slant 斜切 + 飘荡
+        const drift = Math.sin((d.offset / params.fallRange) * Math.PI * 2 + d.driftPhase!) * opts.snowDrift * 20;
+        const x = win.x + d.offset * params.slant + drift;
+        const y = win.y + d.offset;
+
+        // 边界裁剪：将屏幕终点反投影到经纬度检查
+        const carto = windowToCartographic(x, y);
+        if (!carto || !isInBounds(Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude))) {
+          continue;
+        }
+
+        // 白色雪花，行程末尾淡出
+        const fade = 1 - clamp(d.offset / params.fallRange, 0, 1) * 0.75;
+        ctx.fillStyle = `rgba(255, 255, 255, ${(0.5 + d.intensity * 0.4) * fade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, d.length, 0, Math.PI * 2);
+        ctx.fill();
       }
+    } else {
+      // 雨场：画线条
+      ctx.lineWidth = opts.dropWidth;
+      ctx.lineCap = 'round';
 
-      const win = project(d.lon, d.lat);
-      if (!win) continue;
-      // 视野外不画
-      if (win.x < -50 || win.x > w + 50 || win.y < -50 || win.y > h + 50) continue;
+      for (const d of drops) {
+        if (d.intensity <= 0) continue;
 
-      // 屏幕空间下落：y 向下增长，x 按 slant 斜切
-      const x = win.x + d.offset * opts.slant;
-      const y = win.y + d.offset;
-      const [r, g, b] = rainColorAt(d.intensity * opts.colorMax);
-      // 行程末尾淡出，雨滴不会突然消失
-      const fade = 1 - clamp(d.offset / opts.fallRange, 0, 1) * 0.75;
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(0.35 + d.intensity * 0.5) * fade})`;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + d.length * opts.slant, y + d.length);
-      ctx.stroke();
+        d.offset += d.speed * dt;
+        if (d.offset > params.fallRange) {
+          respawn(d);
+          d.offset = 0;
+        }
+
+        const win = project(d.lon, d.lat);
+        if (!win) continue;
+        // 视野外不画
+        if (win.x < -50 || win.x > w + 50 || win.y < -50 || win.y > h + 50) continue;
+
+        // 屏幕空间下落：y 向下增长，x 按 slant 斜切
+        const startX = win.x;
+        const startY = win.y;
+        const endX = startX + d.offset * params.slant;
+        const endY = startY + d.offset;
+
+        // 边界裁剪：将屏幕终点反投影到经纬度检查
+        const carto = windowToCartographic(endX, endY);
+        if (!carto || !isInBounds(Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude))) {
+          continue;
+        }
+
+        const [r, g, b] = rainColorAt(d.intensity * opts.colorMax);
+        // 行程末尾淡出，雨滴不会突然消失
+        const fade = 1 - clamp(d.offset / params.fallRange, 0, 1) * 0.75;
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(0.35 + d.intensity * 0.5) * fade})`;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
     }
 
     rafId = requestAnimationFrame(frame);
@@ -412,7 +543,18 @@ interface CellLayerOptions {
   labelThreshold: number;
   pulse: boolean;
   pulsePeriod: number;
+  weatherType: 'rain' | 'snow';
 }
+
+/** 雪量分级（24h 降水量分级，用于雪场） */
+const SNOW_LEVELS: { min: number; rgb: [number, number, number]; alpha: number; label: string }[] = [
+  { min: 0, rgb: [240, 245, 255], alpha: 0.0, label: '无雪' },
+  { min: 2, rgb: [200, 210, 230], alpha: 0.25, label: '小雪' },
+  { min: 10, rgb: [170, 180, 210], alpha: 0.35, label: '中雪' },
+  { min: 25, rgb: [140, 155, 190], alpha: 0.45, label: '大雪' },
+  { min: 50, rgb: [110, 130, 170], alpha: 0.55, label: '暴雪' },
+  { min: 75, rgb: [80, 105, 150], alpha: 0.65, label: '大暴雪' },
+];
 
 function drawCellLayer(
   Cesium: any,
@@ -421,16 +563,17 @@ function drawCellLayer(
   opts: CellLayerOptions
 ) {
   const startTime = Date.now();
+  const levels = opts.weatherType === 'snow' ? SNOW_LEVELS : RAIN_LEVELS;
 
   data.forEach((p) => {
-    const level = rainLevelOf(p.rainfall);
+    const level = getLevel(p.rainfall, levels);
     if (level.alpha <= 0 && !opts.showLabels) return;
 
     if (opts.showCells && level.alpha > 0) {
       const base = Cesium.Color.fromBytes(level.rgb[0], level.rgb[1], level.rgb[2], 255);
       const intensity = clamp(p.rainfall / opts.colorMax, 0, 1);
 
-      // 呼吸脉动：雨越大脉动幅度越明显，且各格子相位错开，整体像云团在涨落
+      // 呼吸脉动：降水量越大脉动幅度越明显，且各格子相位错开，整体像云团在涨落
       const phase = Math.random() * Math.PI * 2;
       const material = opts.pulse
         ? new Cesium.ColorMaterialProperty(
@@ -488,10 +631,15 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
-/** 取雨量所属的分级 */
+/** 取降水量所属的分级 */
 function rainLevelOf(rainfall: number) {
-  let level = RAIN_LEVELS[0];
-  for (const l of RAIN_LEVELS) {
+  return getLevel(rainfall, RAIN_LEVELS);
+}
+
+/** 获取降水量所属的分级 */
+function getLevel(rainfall: number, levels: any[]) {
+  let level = levels[0];
+  for (const l of levels) {
     if (rainfall >= l.min) level = l;
     else break;
   }
@@ -541,12 +689,15 @@ function generateRainfallData(bounds: RainfallBounds, gridSize: number): Rainfal
   return data;
 }
 
-/** 绘制降雨图例（HTML 覆盖层，放在风场图例上方，避免互相遮挡） */
-function drawRainfallLegend(viewer: any) {
+/** 绘制降水量图例（HTML 覆盖层，放在风场图例上方，避免互相遮挡） */
+function drawRainfallLegend(viewer: any, weatherType: 'rain' | 'snow' = 'rain') {
   document.getElementById(LEGEND_DOM_ID)?.remove();
 
-  // 跳过"无雨"级，图例只列有色的分级
-  const rows = RAIN_LEVELS.slice(1)
+  const levels = weatherType === 'snow' ? SNOW_LEVELS : RAIN_LEVELS;
+  const title = weatherType === 'snow' ? '降雪量' : '降雨量';
+
+  // 跳过"无雨/无雪"级，图例只列有色的分级
+  const rows = levels.slice(1)
     .map((l, i, arr) => {
       const next = arr[i + 1];
       const range = next ? `${l.min}~${next.min}` : `≥${l.min}`;
@@ -562,7 +713,7 @@ function drawRainfallLegend(viewer: any) {
 
   const el = document.createElement('div');
   el.id = LEGEND_DOM_ID;
-  el.innerHTML = `<div style="font-size:12px;margin-bottom:2px;">降雨量 (mm)</div>${rows}`;
+  el.innerHTML = `<div style="font-size:12px;margin-bottom:2px;">${title} (mm)</div>${rows}`;
   Object.assign(el.style, {
     position: 'absolute',
     right: '12px',
